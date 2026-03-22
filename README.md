@@ -2,7 +2,7 @@
 
 A language server for [Lumen](https://lumenlang.dev), providing editor support for `.luma` scripts.
 
-The official VSCode extension is available at https://github.com/LumenLang/vscode-extension.
+The official VSCode extension is available at https://github.com/LumenLang/vscode-lumen.
 
 ## What is an LSP?
 
