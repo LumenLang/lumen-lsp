@@ -2,6 +2,8 @@
 
 A language server for [Lumen](https://lumenlang.dev), providing editor support for `.luma` scripts.
 
+The official VSCode extension is available at https://github.com/LumenLang/vscode-extension.
+
 ## What is an LSP?
 
 A Language Server Protocol (LSP) server runs in the background and gives your editor features like completions, hover info, error checking, and more. Instead of building these into every editor separately, an LSP works with any editor that supports the protocol. This project is the server. You pair it with a client extension for your editor.
