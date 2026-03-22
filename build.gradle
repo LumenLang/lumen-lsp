@@ -1,0 +1,39 @@
+plugins {
+    id 'java'
+    id "com.gradleup.shadow" version "9.2.1"
+}
+
+group = 'dev.lumenlang'
+version = '1.0.0'
+
+repositories {
+    mavenCentral()
+    maven { url = "https://repo.lumenlang.dev" }
+}
+
+dependencies {
+    implementation "dev.lumenlang:lumen-pipeline:1.0.6-BETA"
+    implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0"
+    implementation "com.google.code.gson:gson:2.13.1"
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+jar {
+    manifest {
+        attributes "Main-Class": "dev.lumenlang.lumen.lsp.LumenLanguageServerLauncher"
+    }
+}
+
+shadowJar {
+    archiveClassifier.set('')
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}
+
+build {
+    dependsOn(tasks.shadowJar)
+}
