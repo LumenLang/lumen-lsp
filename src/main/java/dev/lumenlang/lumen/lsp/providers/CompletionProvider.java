@@ -43,6 +43,25 @@ public final class CompletionProvider {
 
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("%([^%:]+)(?::([^%]+))?%");
 
+    private static final List<MiniColorEntry> MINI_COLORS = List.of(
+            new MiniColorEntry("red", "#FF5555", "Red color", "\"<red>This text is red</red>\""),
+            new MiniColorEntry("green", "#55FF55", "Green color", "\"<green>This text is green</green>\""),
+            new MiniColorEntry("blue", "#5555FF", "Blue color", "\"<blue>This text is blue</blue>\""),
+            new MiniColorEntry("yellow", "#FFFF55", "Yellow color", "\"<yellow>Warning!</yellow>\""),
+            new MiniColorEntry("gold", "#FFAA00", "Gold color", "\"<gold>Achievement unlocked</gold>\""),
+            new MiniColorEntry("aqua", "#55FFFF", "Aqua/cyan color", "\"<aqua>Info message</aqua>\""),
+            new MiniColorEntry("white", "#FFFFFF", "White color", "\"<white>Default text</white>\""),
+            new MiniColorEntry("black", "#000000", "Black color", "\"<black>Dark text</black>\""),
+            new MiniColorEntry("gray", "#AAAAAA", "Gray color", "\"<gray>Muted text</gray>\""),
+            new MiniColorEntry("dark_red", "#AA0000", "Dark red color", "\"<dark_red>Error!</dark_red>\""),
+            new MiniColorEntry("dark_green", "#00AA00", "Dark green color", "\"<dark_green>Success</dark_green>\""),
+            new MiniColorEntry("dark_blue", "#0000AA", "Dark blue color", "\"<dark_blue>Link</dark_blue>\""),
+            new MiniColorEntry("dark_aqua", "#00AAAA", "Dark aqua color", "\"<dark_aqua>Info</dark_aqua>\""),
+            new MiniColorEntry("dark_purple", "#AA00AA", "Dark purple color", "\"<dark_purple>Rare item</dark_purple>\""),
+            new MiniColorEntry("dark_gray", "#555555", "Dark gray color", "\"<dark_gray>Disabled</dark_gray>\""),
+            new MiniColorEntry("light_purple", "#FF55FF", "Light purple/pink color", "\"<light_purple>Special</light_purple>\"")
+    );
+
     /**
      * Checks whether a label string matches a filter by prefix, word-start, containment,
      * or by matching the literal words of a partially typed pattern.
@@ -528,13 +547,29 @@ public final class CompletionProvider {
     }
 
     /**
-     * Appends MiniColorize tag completion items including named colors, decorations, and special tags.
+     * Appends MiniColorize tag completion items.
      *
      * @param items  the list to append items to
      * @param filter the partial tag text typed so far
      */
     private void completeMiniColorize(@NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
+        if (lower.startsWith("gradient:")) {
+            String gradientContent = lower.substring("gradient:".length());
+            String colorFilter = gradientContent.contains(":")
+                    ? gradientContent.substring(gradientContent.lastIndexOf(':') + 1)
+                    : gradientContent;
+            completeMiniGradientColors(items, colorFilter);
+            return;
+        }
+        if (lower.startsWith("click:")) {
+            completeMiniClickActions(items, lower.substring("click:".length()));
+            return;
+        }
+        if (lower.startsWith("hover:")) {
+            completeMiniHoverActions(items, lower.substring("hover:".length()));
+            return;
+        }
         completeMiniColors(items, lower);
         completeMiniDecorations(items, lower);
         completeMiniSpecial(items, lower);
@@ -547,25 +582,7 @@ public final class CompletionProvider {
      * @param filter the lowercase filter
      */
     private void completeMiniColors(@NotNull List<CompletionItem> items, @NotNull String filter) {
-        List<MiniColorEntry> colors = List.of(
-                new MiniColorEntry("red", "#FF5555", "Red color", "\"<red>This text is red</red>\""),
-                new MiniColorEntry("green", "#55FF55", "Green color", "\"<green>This text is green</green>\""),
-                new MiniColorEntry("blue", "#5555FF", "Blue color", "\"<blue>This text is blue</blue>\""),
-                new MiniColorEntry("yellow", "#FFFF55", "Yellow color", "\"<yellow>Warning!</yellow>\""),
-                new MiniColorEntry("gold", "#FFAA00", "Gold color", "\"<gold>Achievement unlocked</gold>\""),
-                new MiniColorEntry("aqua", "#55FFFF", "Aqua/cyan color", "\"<aqua>Info message</aqua>\""),
-                new MiniColorEntry("white", "#FFFFFF", "White color", "\"<white>Default text</white>\""),
-                new MiniColorEntry("black", "#000000", "Black color", "\"<black>Dark text</black>\""),
-                new MiniColorEntry("gray", "#AAAAAA", "Gray color", "\"<gray>Muted text</gray>\""),
-                new MiniColorEntry("dark_red", "#AA0000", "Dark red color", "\"<dark_red>Error!</dark_red>\""),
-                new MiniColorEntry("dark_green", "#00AA00", "Dark green color", "\"<dark_green>Success</dark_green>\""),
-                new MiniColorEntry("dark_blue", "#0000AA", "Dark blue color", "\"<dark_blue>Link</dark_blue>\""),
-                new MiniColorEntry("dark_aqua", "#00AAAA", "Dark aqua color", "\"<dark_aqua>Info</dark_aqua>\""),
-                new MiniColorEntry("dark_purple", "#AA00AA", "Dark purple color", "\"<dark_purple>Rare item</dark_purple>\""),
-                new MiniColorEntry("dark_gray", "#555555", "Dark gray color", "\"<dark_gray>Disabled</dark_gray>\""),
-                new MiniColorEntry("light_purple", "#FF55FF", "Light purple/pink color", "\"<light_purple>Special</light_purple>\"")
-        );
-        for (MiniColorEntry entry : colors) {
+        for (MiniColorEntry entry : MINI_COLORS) {
             if (!filter.isEmpty() && !entry.name().startsWith(filter)) continue;
             CompletionItem item = new CompletionItem(entry.name());
             item.setKind(CompletionItemKind.Color);
@@ -776,6 +793,97 @@ public final class CompletionProvider {
             item.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, entry.documentation()));
             item.setInsertText(entry.name().endsWith(":") ? entry.name() : entry.name() + ">");
             item.setInsertTextFormat(InsertTextFormat.PlainText);
+            items.add(item);
+        }
+    }
+
+    /**
+     * Appends named color and hex color completion items for use inside a gradient tag parameter,
+     * allowing the user to complete individual color stops in a gradient chain.
+     *
+     * @param items  the list to append items to
+     * @param filter the lowercase filter for the current color segment being typed
+     */
+    private void completeMiniGradientColors(@NotNull List<CompletionItem> items, @NotNull String filter) {
+        if ("#".startsWith(filter) || filter.startsWith("#")) {
+            CompletionItem hex = new CompletionItem("#RRGGBB");
+            hex.setKind(CompletionItemKind.Color);
+            hex.setDetail("Custom hex color");
+            hex.setInsertText("#${1:RRGGBB}>");
+            hex.setInsertTextFormat(InsertTextFormat.Snippet);
+            hex.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, "Custom hex color in `#RRGGBB` format.\n\n**Example:**\n```luma\nmessage player \"<gradient:#FF0000:#00FF00>Hello</gradient>\"\n```"));
+            items.add(hex);
+        }
+        for (MiniColorEntry entry : MINI_COLORS) {
+            if (!filter.isEmpty() && !entry.name().startsWith(filter)) continue;
+            CompletionItem item = new CompletionItem(entry.name());
+            item.setKind(CompletionItemKind.Color);
+            item.setDetail(entry.hex());
+            item.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, "**%s** (`%s`)\n\n%s".formatted(entry.name(), entry.hex(), entry.description())));
+            item.setInsertText(entry.name() + ">");
+            item.setInsertTextFormat(InsertTextFormat.PlainText);
+            items.add(item);
+        }
+    }
+
+    /**
+     * Appends click action completion items for use inside a click tag parameter such as
+     * run_command, suggest_command, open_url, and copy_to_clipboard.
+     *
+     * @param items  the list to append items to
+     * @param filter the lowercase filter for the action name being typed
+     */
+    private void completeMiniClickActions(@NotNull List<CompletionItem> items, @NotNull String filter) {
+        if (filter.contains(":")) return;
+        record Action(@NotNull String name, @NotNull String detail, @NotNull String snippet, @NotNull String docs) {}
+        List<Action> actions = List.of(
+                new Action("run_command", "Execute a command when clicked",
+                        "run_command:/${1:command}>",
+                        "**run_command**\n\nExecutes a command when the player clicks the text.\n\n**Example:**\n```luma\nmessage player \"<click:run_command:/help>Click for help</click>\"\n```"),
+                new Action("suggest_command", "Pre-fill a command in chat when clicked",
+                        "suggest_command:${1:/command}>",
+                        "**suggest_command**\n\nOpens chat with a pre-filled command when the player clicks the text.\n\n**Example:**\n```luma\nmessage player \"<click:suggest_command:/msg >Click to message</click>\"\n```"),
+                new Action("open_url", "Open a URL in the browser when clicked",
+                        "open_url:${1:https://example.com}>",
+                        "**open_url**\n\nOpens a URL in the player's browser when they click the text.\n\n**Example:**\n```luma\nmessage player \"<click:open_url:https://example.com>Visit site</click>\"\n```"),
+                new Action("copy_to_clipboard", "Copy text to clipboard when clicked",
+                        "copy_to_clipboard:${1:text}>",
+                        "**copy_to_clipboard**\n\nCopies text to the player's clipboard when they click.\n\n**Example:**\n```luma\nmessage player \"<click:copy_to_clipboard:Hello!>Copy me</click>\"\n```")
+        );
+        for (Action action : actions) {
+            if (!filter.isEmpty() && !action.name().startsWith(filter)) continue;
+            CompletionItem item = new CompletionItem(action.name());
+            item.setKind(CompletionItemKind.Event);
+            item.setDetail(action.detail());
+            item.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, action.docs()));
+            item.setInsertText(action.snippet());
+            item.setInsertTextFormat(InsertTextFormat.Snippet);
+            items.add(item);
+        }
+    }
+
+    /**
+     * Appends hover action completion items for use inside a hover tag parameter.
+     *
+     * @param items  the list to append items to
+     * @param filter the lowercase filter for the action name being typed
+     */
+    private void completeMiniHoverActions(@NotNull List<CompletionItem> items, @NotNull String filter) {
+        if (filter.contains(":")) return;
+        record Action(@NotNull String name, @NotNull String detail, @NotNull String snippet, @NotNull String docs) {}
+        List<Action> actions = List.of(
+                new Action("show_text", "Show a tooltip when hovered",
+                        "show_text:'${1:text}'>",
+                        "**show_text**\n\nShows a text tooltip when the player hovers over the text.\n\n**Example:**\n```luma\nmessage player \"<hover:show_text:'Hello!'>Hover me</hover>\"\n```\n\nTooltip text supports nested MiniColorize formatting.")
+        );
+        for (Action action : actions) {
+            if (!filter.isEmpty() && !action.name().startsWith(filter)) continue;
+            CompletionItem item = new CompletionItem(action.name());
+            item.setKind(CompletionItemKind.Event);
+            item.setDetail(action.detail());
+            item.setDocumentation(new MarkupContent(MarkupKind.MARKDOWN, action.docs()));
+            item.setInsertText(action.snippet());
+            item.setInsertTextFormat(InsertTextFormat.Snippet);
             items.add(item);
         }
     }
@@ -1114,5 +1222,4 @@ public final class CompletionProvider {
             }
         }
     }
-
 }
