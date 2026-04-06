@@ -43,7 +43,6 @@ import java.util.Map;
  * Performs full analysis of a Lumen script, producing diagnostics,
  * variable scopes, and classification results for every line.
  */
-@SuppressWarnings("DataFlowIssue")
 public final class DocumentAnalyzer {
 
     private final Tokenizer tokenizer = new Tokenizer();

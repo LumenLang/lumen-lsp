@@ -1,6 +1,5 @@
 package dev.lumenlang.lumen.lsp.documentation;
 
-import dev.lumenlang.lumen.pipeline.documentation.LumenDoc;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
