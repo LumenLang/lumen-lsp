@@ -38,11 +38,7 @@ public final class DefaultTypeBindings {
      * @param fqcn      the fully qualified class name of the enum
      * @param <E>       the enum type
      */
-    private static <E extends Enum<E>> void tryRegisterEnum(
-            @NotNull LumenAPI api,
-            @NotNull String typeId,
-            @NotNull Class<E> enumClass,
-            @NotNull String fqcn) {
+    private static <E extends Enum<E>> void tryRegisterEnum(@NotNull LumenAPI api, @NotNull String typeId, @NotNull Class<E> enumClass, @NotNull String fqcn) {
         try {
             api.types().register(EnumTypeBinding.of(typeId, enumClass, fqcn));
         } catch (Exception e) {
@@ -58,11 +54,7 @@ public final class DefaultTypeBindings {
      * @param clazz  the class containing static fields to bind
      * @param fqcn   the fully qualified class name
      */
-    private static void tryRegisterRegistryType(
-            @NotNull LumenAPI api,
-            @NotNull String typeId,
-            @NotNull Class<?> clazz,
-            @NotNull String fqcn) {
+    private static void tryRegisterRegistryType(@NotNull LumenAPI api, @NotNull String typeId, @NotNull Class<?> clazz, @NotNull String fqcn) {
         try {
             api.types().register(RegistryTypeBinding.fromStaticFields(typeId, clazz, fqcn));
         } catch (Exception e) {
@@ -165,8 +157,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object value, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object value, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (value instanceof VarHandle ref) {
                     return "Coerce.toInt(" + ref.java() + ")";
                 }
@@ -214,8 +206,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object value, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object value, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (value instanceof VarHandle ref) {
                     return "((long) Coerce.toDouble(" + ref.java() + "))";
                 }
@@ -260,8 +252,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object value, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object value, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (value instanceof VarHandle ref) {
                     return "Coerce.toDouble(" + ref.java() + ")";
                 }
@@ -322,8 +314,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object value, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object value, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (value instanceof VarHandle ref) {
                     return "Coerce.toDouble(" + ref.java() + ")";
                 }
@@ -388,8 +380,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object value, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object value, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (value instanceof VarHandle ref) {
                     return "Boolean.parseBoolean(String.valueOf(" + ref.java() + "))";
                 }
@@ -435,8 +427,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null player reference");
                 return ((VarHandle) v).java();
@@ -479,8 +471,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null player reference");
                 return ((VarHandle) v).java();
@@ -529,8 +521,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null offline player reference");
                 return ((VarHandle) v).java();
@@ -573,8 +565,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null offline player reference");
                 return ((VarHandle) v).java();
@@ -619,8 +611,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 return (String) v;
             }
         });
@@ -735,8 +727,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 return (String) v;
             }
         });
@@ -779,8 +771,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null entity reference");
                 return ((VarHandle) v).java();
@@ -826,8 +818,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null entity reference");
                 return ((VarHandle) v).java();
@@ -878,8 +870,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null item stack reference");
                 return ((VarHandle) v).java();
@@ -921,8 +913,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null item stack reference");
                 return ((VarHandle) v).java();
@@ -968,8 +960,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 return ((VarHandle) v).java();
             }
 
@@ -1013,8 +1005,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 return ((VarHandle) v).java();
             }
 
@@ -1070,8 +1062,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null list reference");
                 return ((VarHandle) v).java();
@@ -1129,8 +1121,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null map reference");
                 return ((VarHandle) v).java();
@@ -1188,8 +1180,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null data reference");
                 return ((VarHandle) v).java();
@@ -1235,8 +1227,8 @@ public final class DefaultTypeBindings {
             }
 
             @Override
-            public @NotNull String toJava(Object v, @NotNull CodegenAccess ctx,
-                                          @NotNull EnvironmentAccess env) {
+            public @NotNull String toJava(
+                    Object v, @NotNull CodegenAccess ctx, @NotNull EnvironmentAccess env) {
                 if (v == null)
                     throw new RuntimeException("Cannot generate Java for null block reference");
                 return ((VarHandle) v).java();

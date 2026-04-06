@@ -16,19 +16,17 @@ import dev.lumenlang.lumen.pipeline.codegen.BlockContext;
 import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
 import dev.lumenlang.lumen.pipeline.data.DataSchema;
 import dev.lumenlang.lumen.pipeline.language.nodes.BlockNode;
-import dev.lumenlang.lumen.pipeline.language.nodes.ConditionalBlockNode;
 import dev.lumenlang.lumen.pipeline.language.nodes.Node;
 import dev.lumenlang.lumen.pipeline.language.nodes.RawBlockNode;
 import dev.lumenlang.lumen.pipeline.language.nodes.StatementNode;
 import dev.lumenlang.lumen.pipeline.language.parse.LumenParser;
 import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
-import dev.lumenlang.lumen.pipeline.language.pattern.RegisteredBlockMatch;
-import dev.lumenlang.lumen.pipeline.language.pattern.RegisteredExpressionMatch;
-import dev.lumenlang.lumen.pipeline.language.pattern.RegisteredPatternMatch;
+import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
+import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredExpressionMatch;
+import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Line;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Token;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Tokenizer;
-import dev.lumenlang.lumen.pipeline.language.typed.Expr;
 import dev.lumenlang.lumen.pipeline.language.typed.StatementClassifier;
 import dev.lumenlang.lumen.pipeline.language.typed.TypedStatement;
 import dev.lumenlang.lumen.pipeline.var.RefType;
@@ -45,7 +43,6 @@ import java.util.Map;
  * Performs full analysis of a Lumen script, producing diagnostics,
  * variable scopes, and classification results for every line.
  */
-@SuppressWarnings("DataFlowIssue")
 public final class DocumentAnalyzer {
 
     private final Tokenizer tokenizer = new Tokenizer();
@@ -59,9 +56,7 @@ public final class DocumentAnalyzer {
      * @param docs     the documentation data for event lookups
      * @return the analysis result
      */
-    public @NotNull AnalysisResult analyze(@NotNull String source,
-                                           @NotNull PatternRegistry registry,
-                                           @NotNull DocumentationData docs) {
+    public @NotNull AnalysisResult analyze(@NotNull String source, @NotNull PatternRegistry registry, @NotNull DocumentationData docs) {
         List<Line> lines;
         BlockNode root;
         try {
@@ -102,19 +97,32 @@ public final class DocumentAnalyzer {
      * @param state the current analysis state
      */
     private void walk(@NotNull List<Node> nodes, @NotNull AnalysisState state) {
+        boolean terminated = false;
         for (Node node : nodes) {
             try {
+                if (terminated) {
+                    List<Token> tokens = node.head();
+                    int colStart = 0;
+                    int colEnd = 0;
+                    if (tokens != null && !tokens.isEmpty()) {
+                        colStart = tokens.get(0).start();
+                        colEnd = tokens.get(tokens.size() - 1).end();
+                    }
+                    state.report(new LumenDiagnostic(node.line(), colStart, colEnd,
+                            "Unreachable code after stop/return",
+                            LumenSeverity.ERROR));
+                }
+
                 if (node instanceof StatementNode stmt) {
                     state.snapshot(stmt.line());
                     classify(stmt, state);
                     state.snapshot(stmt.line());
+                    if (!terminated && isTerminator(stmt)) {
+                        terminated = true;
+                    }
                 } else if (node instanceof RawBlockNode) {
                     state.record(new LineInfo(node.line(), node.head(), LineKind.RAW_BLOCK, null, null));
                     state.snapshot(node.line());
-                } else if (node instanceof ConditionalBlockNode cond) {
-                    state.record(new LineInfo(cond.line(), cond.head(), LineKind.CONDITIONAL, null, null));
-                    state.snapshot(cond.line());
-                    walk(cond.children(), state);
                 } else if (node instanceof BlockNode block) {
                     analyzeBlock(block, state);
                 }
@@ -126,6 +134,19 @@ public final class DocumentAnalyzer {
                 ));
             }
         }
+    }
+
+    /**
+     * Returns true if the given statement is a block terminator ({@code stop} or {@code return}).
+     *
+     * @param stmt the statement to check
+     * @return true if the statement terminates the block
+     */
+    private boolean isTerminator(@NotNull StatementNode stmt) {
+        List<Token> tokens = stmt.head();
+        if (tokens.isEmpty()) return false;
+        String first = tokens.get(0).text().toLowerCase();
+        return "stop".equals(first) || "return".equals(first);
     }
 
     /**
@@ -168,8 +189,7 @@ public final class DocumentAnalyzer {
      * @param head  the header tokens
      * @param state the analysis state
      */
-    private void analyzeEventBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                   @NotNull AnalysisState state) {
+    private void analyzeEventBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
         String eventName = extractEventName(head);
         EventEntry event = findEvent(state.docs(), eventName);
         if (event != null) {
@@ -197,8 +217,7 @@ public final class DocumentAnalyzer {
      * @param head  the header tokens
      * @param state the analysis state
      */
-    private void analyzeConditionalBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                         @NotNull AnalysisState state) {
+    private void analyzeConditionalBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
         state.record(new LineInfo(block.line(), head, LineKind.CONDITIONAL, null, null));
         state.snapshot(block.line());
         walk(block.children(), state);
@@ -211,8 +230,7 @@ public final class DocumentAnalyzer {
      * @param head  the header tokens
      * @param state the analysis state
      */
-    private void analyzeLoopBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                  @NotNull AnalysisState state) {
+    private void analyzeLoopBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
         BlockContext parentCtx = state.env().blockContext().parent();
         boolean loopAtRoot = parentCtx != null && parentCtx.parent() == null;
         if (loopAtRoot) {
@@ -242,8 +260,7 @@ public final class DocumentAnalyzer {
      * @param head  the header tokens
      * @param state the analysis state
      */
-    private void analyzeDataBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                  @NotNull AnalysisState state) {
+    private void analyzeDataBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
         BlockContext parentCtx = state.env().blockContext().parent();
         boolean atRoot = parentCtx != null && parentCtx.parent() == null;
         if (!atRoot) {
@@ -293,9 +310,7 @@ public final class DocumentAnalyzer {
      * @param state     the analysis state
      * @param outerVars the outer scope variables to propagate config entries into
      */
-    private void analyzeConfigBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                    @NotNull AnalysisState state,
-                                    @NotNull Map<String, VarDeclaration> outerVars) {
+    private void analyzeConfigBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state, @NotNull Map<String, VarDeclaration> outerVars) {
         BlockContext parentCtx = state.env().blockContext().parent();
         boolean atRoot = parentCtx != null && parentCtx.parent() == null;
         if (!atRoot) {
@@ -334,8 +349,7 @@ public final class DocumentAnalyzer {
      * @param keyword the first token lowercased
      * @param state   the analysis state
      */
-    private void analyzeDefaultBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                     @NotNull String keyword, @NotNull AnalysisState state) {
+    private void analyzeDefaultBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull String keyword, @NotNull AnalysisState state) {
         BlockEntry docBlock = findBlock(state.docs(), keyword);
         if (docBlock != null) {
             checkNesting(block, docBlock, state);
@@ -367,8 +381,7 @@ public final class DocumentAnalyzer {
      * @param keyword the block keyword
      * @param state   the analysis state
      */
-    private void classifyUnknownBlock(@NotNull BlockNode block, @NotNull List<Token> head,
-                                      @NotNull String keyword, @NotNull AnalysisState state) {
+    private void classifyUnknownBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull String keyword, @NotNull AnalysisState state) {
         boolean isStatement = false;
         boolean isExpression = false;
         try {
@@ -392,13 +405,15 @@ public final class DocumentAnalyzer {
     }
 
     /**
-     * Classifies a single statement node, dispatching to the pipeline classifier
-     * and handling the result by type.
+     * Classifies a single statement node, first checking for variable declarations,
+     * then dispatching to the pipeline classifier and handling the result by type.
      *
      * @param stmt  the statement node to classify
      * @param state the analysis state
      */
     private void classify(@NotNull StatementNode stmt, @NotNull AnalysisState state) {
+        if (detectVarDeclaration(stmt, state)) return;
+
         TypedStatement typed;
         try {
             typed = StatementClassifier.classify(stmt, state.registry(), state.env());
@@ -415,18 +430,75 @@ public final class DocumentAnalyzer {
         } else if (typed instanceof TypedStatement.PatternStmt ps) {
             state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.STATEMENT,
                     ps.match().reg().meta(), null));
-        } else if (typed instanceof TypedStatement.VarStmt vs) {
-            handleVarDecl(stmt, vs.name(), inferRefType(vs.expr()), LineKind.VAR_DECL, state);
-        } else if (typed instanceof TypedStatement.ExprVarStmt evs) {
-            handleExprVarDecl(stmt, evs, state);
         } else if (typed instanceof TypedStatement.ExprStmt es) {
             state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.EXPRESSION,
                     es.match().reg().meta(), null));
-        } else if (typed instanceof TypedStatement.StoreVarStmt sv) {
-            handleVarDecl(stmt, sv.name(), inferRefType(sv.expr()), LineKind.STORE_VAR, state);
-        } else if (typed instanceof TypedStatement.GlobalVarStmt gv) {
-            handleVarDecl(stmt, gv.name(), inferRefType(gv.expr()), LineKind.GLOBAL_VAR, state);
         }
+    }
+
+    /**
+     * Detects whether a statement is a variable declaration
+     * ({@code set}, {@code global}, {@code global stored}, {@code global scoped})
+     * and records it accordingly. Called before the pipeline classifier so that
+     * variable syntax is always recognized regardless of registered patterns.
+     *
+     * @param stmt  the statement node
+     * @param state the analysis state
+     * @return true if the statement was a variable declaration
+     */
+    private boolean detectVarDeclaration(@NotNull StatementNode stmt, @NotNull AnalysisState state) {
+        List<Token> tokens = stmt.head();
+        if (tokens.isEmpty()) return false;
+
+        String first = tokens.get(0).text().toLowerCase();
+
+        if (first.equals("set") && tokens.size() >= 3 && tokens.get(2).text().equalsIgnoreCase("to")) {
+            String name = tokens.get(1).text();
+            RefType refType = inferTokensAfterKeyword(tokens, "to");
+            handleVarDecl(stmt, name, refType, LineKind.VAR_DECL, state);
+            return true;
+        }
+
+        if (first.equals("global") && tokens.size() >= 2) {
+            String second = tokens.get(1).text().toLowerCase();
+
+            if (second.equals("stored") && tokens.size() >= 3) {
+                String name = tokens.get(2).text();
+                RefType refType = inferTokensAfterKeyword(tokens, "default");
+                handleVarDecl(stmt, name, refType, LineKind.STORE_VAR, state);
+                return true;
+            }
+
+            if (second.equals("scoped") && tokens.size() >= 3) {
+                String name = tokens.get(2).text();
+                RefType refType = inferTokensAfterKeyword(tokens, "default");
+                handleVarDecl(stmt, name, refType, LineKind.GLOBAL_VAR, state);
+                return true;
+            }
+
+            String name = tokens.get(1).text();
+            RefType refType = inferTokensAfterKeyword(tokens, "default");
+            handleVarDecl(stmt, name, refType, LineKind.GLOBAL_VAR, state);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Infers a {@link RefType} from tokens appearing after a given keyword in the token list.
+     *
+     * @param tokens  the full token list
+     * @param keyword the keyword to search for (e.g. "to", "default")
+     * @return the inferred ref type, or null if unknown
+     */
+    private @Nullable RefType inferTokensAfterKeyword(@NotNull List<Token> tokens, @NotNull String keyword) {
+        for (int i = 0; i < tokens.size(); i++) {
+            if (tokens.get(i).text().equalsIgnoreCase(keyword) && i + 1 < tokens.size()) {
+                return inferTokenRefType(tokens.subList(i + 1, tokens.size()));
+            }
+        }
+        return null;
     }
 
     /**
@@ -437,8 +509,7 @@ public final class DocumentAnalyzer {
      * @param err   the error classification result
      * @param state the analysis state
      */
-    private void handleError(@NotNull StatementNode stmt, @NotNull TypedStatement.ErrorStmt err,
-                             @NotNull AnalysisState state) {
+    private void handleError(@NotNull StatementNode stmt, @NotNull TypedStatement.ErrorStmt err, @NotNull AnalysisState state) {
         List<Token> errorTokens = err.errorTokens();
         int colStart = 0;
         int colEnd = 0;
@@ -483,40 +554,14 @@ public final class DocumentAnalyzer {
      * @param kind    the line kind to record
      * @param state   the analysis state
      */
-    private void handleVarDecl(@NotNull StatementNode stmt, @NotNull String name,
-                               @Nullable RefType refType,
-                               @NotNull LineKind kind,
-                               @NotNull AnalysisState state) {
+    private void handleVarDecl(@NotNull StatementNode stmt, @NotNull String name, @Nullable RefType refType, @NotNull LineKind kind, @NotNull AnalysisState state) {
         state.record(new LineInfo(stmt.line(), stmt.head(), kind, null, null));
-        if (state.variables().containsKey(name)) {
-            state.report(diagnostic(stmt, "Variable '" + name + "' is already defined", LumenSeverity.ERROR));
+        VarDeclaration existing = state.variables().get(name);
+        if (existing != null && !existing.provided()) {
+            state.report(diagnostic(stmt, "Variable '" + name + "' is already defined in this scope on line " + existing.line(), LumenSeverity.ERROR));
+            return;
         }
         declare(name, "Object", refType, stmt.line(), false, state);
-    }
-
-    /**
-     * Handles an expression variable declaration, inferring the return type from
-     * the matched expression.
-     *
-     * @param stmt  the statement node
-     * @param evs   the expression var classification result
-     * @param state the analysis state
-     */
-    private void handleExprVarDecl(@NotNull StatementNode stmt, @NotNull TypedStatement.ExprVarStmt evs,
-                                   @NotNull AnalysisState state) {
-        state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.EXPR_VAR_DECL,
-                evs.match().reg().meta(), null));
-        if (state.variables().containsKey(evs.name())) {
-            state.report(diagnostic(stmt, "Variable '" + evs.name() + "' is already defined", LumenSeverity.ERROR));
-        }
-        RefType exprRef = inferExprVarRefType(evs.raw().head());
-        String exprType = "Object";
-        if (exprRef == null) {
-            ExpressionReturn ret = inferExpressionReturn(evs.match().reg().meta().description(), state.docs());
-            exprRef = ret.refType();
-            if (ret.javaType() != null) exprType = ret.javaType();
-        }
-        declare(evs.name(), exprType, exprRef, stmt.line(), false, state);
     }
 
     /**
@@ -529,43 +574,11 @@ public final class DocumentAnalyzer {
      * @param provided whether this variable is provided by a block context
      * @param state    the analysis state
      */
-    private void declare(@NotNull String name, @NotNull String type, @Nullable RefType refType,
-                         int line, boolean provided, @NotNull AnalysisState state) {
+    private void declare(@NotNull String name, @NotNull String type, @Nullable RefType refType, int line, boolean provided, @NotNull AnalysisState state) {
         VarDeclaration decl = new VarDeclaration(name, type, line, provided);
         state.variables().put(name, decl);
         state.allVariables().put(name, decl);
         state.env().defineVar(name, new VarRef(refType, name));
-    }
-
-    /**
-     * Infers the {@link RefType} from a parsed expression.
-     *
-     * @param expr the parsed expression
-     * @return the inferred ref type, or null if unknown
-     */
-    private @Nullable RefType inferRefType(@NotNull Expr expr) {
-        if (expr.resolvedType() != null && expr.resolvedType().refType() != null) {
-            return expr.resolvedType().refType();
-        }
-        if (expr instanceof Expr.RawExpr raw) {
-            return inferTokenRefType(raw.tokens());
-        }
-        return null;
-    }
-
-    /**
-     * Infers the {@link RefType} for an expression variable by extracting tokens after the equals sign.
-     *
-     * @param head the full token list from the statement
-     * @return the inferred ref type, or null if unknown
-     */
-    private @Nullable RefType inferExprVarRefType(@NotNull List<Token> head) {
-        for (int i = 0; i < head.size(); i++) {
-            if ("=".equals(head.get(i).text()) && i + 1 < head.size()) {
-                return inferTokenRefType(head.subList(i + 1, head.size()));
-            }
-        }
-        return null;
     }
 
     /**
@@ -586,25 +599,6 @@ public final class DocumentAnalyzer {
     }
 
     /**
-     * Infers the return type of a matched expression by looking up its description in the documentation.
-     *
-     * @param description the expression description from pattern metadata
-     * @param docs        the documentation data
-     * @return the inferred return info
-     */
-    private @NotNull ExpressionReturn inferExpressionReturn(@Nullable String description,
-                                                            @NotNull DocumentationData docs) {
-        if (description == null) return new ExpressionReturn(null, null);
-        for (PatternEntry entry : docs.expressions()) {
-            if (description.equals(entry.description())) {
-                RefType ref = entry.returnRefTypeId() != null ? RefType.byId(entry.returnRefTypeId()) : null;
-                return new ExpressionReturn(ref, entry.returnJavaType());
-            }
-        }
-        return new ExpressionReturn(null, null);
-    }
-
-    /**
      * Searches for the closest matching pattern from documentation when a statement
      * could not be classified.
      *
@@ -612,8 +606,7 @@ public final class DocumentAnalyzer {
      * @param docs   the documentation data to search
      * @return the closest match, or null if no reasonable match is found
      */
-    private @Nullable ClosestMatch findClosestMatch(@NotNull List<Token> tokens,
-                                                    @NotNull DocumentationData docs) {
+    private @Nullable ClosestMatch findClosestMatch(@NotNull List<Token> tokens, @NotNull DocumentationData docs) {
         if (tokens.isEmpty()) return null;
 
         List<String> tokenTexts = new ArrayList<>();
@@ -781,8 +774,7 @@ public final class DocumentAnalyzer {
      * @param block   the block node
      * @param state   the analysis state
      */
-    private void injectVariables(@NotNull String keyword, @NotNull BlockNode block,
-                                 @NotNull AnalysisState state) {
+    private void injectVariables(@NotNull String keyword, @NotNull BlockNode block, @NotNull AnalysisState state) {
         BlockEntry entry = findBlock(state.docs(), keyword);
         if (entry == null || entry.variables() == null) return;
         injectVariables(entry, block, state);
@@ -795,8 +787,7 @@ public final class DocumentAnalyzer {
      * @param block the block node
      * @param state the analysis state
      */
-    private void injectVariables(@NotNull BlockEntry entry, @NotNull BlockNode block,
-                                 @NotNull AnalysisState state) {
+    private void injectVariables(@NotNull BlockEntry entry, @NotNull BlockNode block, @NotNull AnalysisState state) {
         if (entry.variables() == null) return;
         for (BlockVariable var : entry.variables()) {
             RefType refType = var.refType() != null ? RefType.byId(var.refType()) : null;
@@ -811,8 +802,7 @@ public final class DocumentAnalyzer {
      * @param entry the block documentation entry
      * @param state the analysis state
      */
-    private void checkNesting(@NotNull BlockNode block, @NotNull BlockEntry entry,
-                              @NotNull AnalysisState state) {
+    private void checkNesting(@NotNull BlockNode block, @NotNull BlockEntry entry, @NotNull AnalysisState state) {
         BlockContext parentCtx = state.env().blockContext().parent();
         boolean atRoot = parentCtx != null && parentCtx.parent() == null;
         if (atRoot && !entry.supportsRootLevel()) {
@@ -906,8 +896,7 @@ public final class DocumentAnalyzer {
      * @param severity the severity
      * @return the constructed diagnostic
      */
-    private @NotNull LumenDiagnostic diagnostic(@NotNull Node node, @NotNull String message,
-                                                @NotNull LumenSeverity severity) {
+    private @NotNull LumenDiagnostic diagnostic(@NotNull Node node, @NotNull String message, @NotNull LumenSeverity severity) {
         List<Token> tokens = node.head();
         int colStart = 0;
         int colEnd = 0;

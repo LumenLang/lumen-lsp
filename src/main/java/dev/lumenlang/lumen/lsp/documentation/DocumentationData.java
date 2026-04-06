@@ -10,7 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 /**
- * Top level container for all documentation entries loaded from documentation.json.
+ * Top level container for all documentation entries loaded from {@code .ldoc} files.
  *
  * @param version      the documentation version string
  * @param statements   registered statement patterns

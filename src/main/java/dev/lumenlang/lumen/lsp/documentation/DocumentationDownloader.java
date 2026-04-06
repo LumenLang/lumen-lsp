@@ -17,24 +17,25 @@ import java.time.Duration;
 import java.util.HexFormat;
 
 /**
- * Downloads and caches documentation.json from the Lumen website.
+ * Downloads and caches Lumen documentation ({@code .ldoc}) from the Lumen website.
  */
 public final class DocumentationDownloader {
 
-    private static final String DOWNLOAD_URL = "https://lumenlang.dev/documentation.json";
+    private static final String DOWNLOAD_URL = "https://lumenlang.dev/Lumen-documentation.ldoc";
+    private static final String CACHE_FILENAME = "Lumen-documentation.ldoc";
     private static final Duration TIMEOUT = Duration.ofSeconds(15);
 
     private DocumentationDownloader() {
     }
 
     /**
-     * Returns the path where the cached documentation.json is stored.
+     * Returns the path where the cached documentation file is stored.
      *
      * @param dataDir the LSP data directory
      * @return the path to the cached file
      */
     public static @NotNull Path cached(@NotNull Path dataDir) {
-        return dataDir.resolve("documentation.json");
+        return dataDir.resolve(CACHE_FILENAME);
     }
 
     /**
@@ -47,17 +48,18 @@ public final class DocumentationDownloader {
         Path file = cached(dataDir);
         if (!Files.isRegularFile(file)) return null;
         try {
-            return DocumentationLoader.load(file);
+            String by = DocumentationLoader.addonName(file.getFileName().toString());
+            return DocumentationLoader.load(file, by);
         } catch (Exception e) {
             return null;
         }
     }
 
     /**
-     * Downloads documentation.json and writes it to the cache if the content has changed.
+     * Downloads the documentation and writes it to the cache if the content has changed.
      *
      * @param dataDir the LSP data directory
-     * @return true if a new version was written (will take effect after restart)
+     * @return true if a new version was written
      */
     public static boolean downloadAndUpdate(@NotNull Path dataDir) {
         try {
@@ -74,7 +76,7 @@ public final class DocumentationDownloader {
                 }
             }
 
-            Path temp = dataDir.resolve("documentation.json.tmp");
+            Path temp = dataDir.resolve(CACHE_FILENAME + ".tmp");
             Files.write(temp, downloaded);
             Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
             return true;
@@ -84,7 +86,7 @@ public final class DocumentationDownloader {
     }
 
     /**
-     * Downloads the documentation.json from the Lumen website.
+     * Downloads the documentation from the Lumen website.
      *
      * @return the raw bytes, or null if the download failed
      */

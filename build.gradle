@@ -12,7 +12,7 @@ repositories {
 }
 
 dependencies {
-    implementation "dev.lumenlang:lumen-pipeline:1.0.6-BETA"
+    implementation "dev.lumenlang:lumen-pipeline:1.0.9-BETA"
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0"
     implementation "com.google.code.gson:gson:2.13.1"
 }

@@ -48,6 +48,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     private final LumenTextDocumentService textDocumentService;
     private final LumenWorkspaceService workspaceService;
     private final @NotNull List<Path> workspaceFolders = new ArrayList<>();
+    private final boolean errorsDisabled;
     private @Nullable LanguageClient client;
     private @Nullable PatternRegistry registry;
     private @Nullable TypeRegistry types;
@@ -55,8 +56,11 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
 
     /**
      * Creates a new language server with its document and workspace services.
+     *
+     * @param errorsDisabled when true, error diagnostics are suppressed entirely
      */
-    public LumenLanguageServer() {
+    public LumenLanguageServer(boolean errorsDisabled) {
+        this.errorsDisabled = errorsDisabled;
         this.textDocumentService = new LumenTextDocumentService(this);
         this.workspaceService = new LumenWorkspaceService(this);
     }
@@ -106,7 +110,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     }
 
     /**
-     * Loads the documentation.json from the local cache or workspace, populating
+     * Loads the documentation from the local cache or workspace, populating
      * the pattern registry and type registry used for completions and diagnostics.
      * After loading, kicks off an async download to check for updates.
      */
@@ -119,30 +123,37 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
         boolean loaded = loadFromCache();
 
         for (Path folder : workspaceFolders) {
-            File docFile = findDocumentation(folder.toFile());
-            if (docFile == null) continue;
-            try {
-                DocumentationData workspaceDocs = DocumentationLoader.load(docFile.toPath());
-                types = new TypeRegistry();
-                registry = new PatternRegistry(types);
-                BuiltinTypeBindingsRegistrar.register(registry, types);
-                documentation = workspaceDocs;
-                RegistryBuilder.populate(registry, types, documentation);
-                loaded = true;
-                if (client != null) {
-                    client.logMessage(new MessageParams(
-                            MessageType.Info,
-                            "Loaded workspace documentation.json with " + documentation.statements().size() + " statements, "
-                                    + documentation.expressions().size() + " expressions, "
-                                    + documentation.events().size() + " events"
-                    ));
-                }
-                break;
-            } catch (Exception e) {
-                if (client != null) {
-                    client.logMessage(new MessageParams(MessageType.Error, "Failed to load workspace documentation.json: " + e.getMessage()));
+            List<File> docFiles = new ArrayList<>();
+            collectDocFiles(folder.toFile(), docFiles, 0);
+            for (File docFile : docFiles) {
+                try {
+                    String by = DocumentationLoader.addonName(docFile.getName());
+                    DocumentationData workspaceDocs = DocumentationLoader.load(docFile.toPath(), by);
+                    documentation = DocumentationLoader.merge(documentation, workspaceDocs);
+                    loaded = true;
+                    if (client != null) {
+                        client.logMessage(new MessageParams(
+                                MessageType.Info,
+                                "Loaded workspace documentation '" + docFile.getName() + "' with "
+                                        + workspaceDocs.statements().size() + " statements, "
+                                        + workspaceDocs.expressions().size() + " expressions, "
+                                        + workspaceDocs.events().size() + " events"
+                        ));
+                    }
+                } catch (Exception e) {
+                    if (client != null) {
+                        client.logMessage(new MessageParams(MessageType.Error,
+                                "Failed to load workspace documentation '" + docFile.getName() + "': " + e.getMessage()));
+                    }
                 }
             }
+        }
+
+        if (loaded) {
+            types = new TypeRegistry();
+            registry = new PatternRegistry(types);
+            BuiltinTypeBindingsRegistrar.register(registry, types);
+            RegistryBuilder.populate(registry, types, documentation);
         }
 
         if (!loaded) {
@@ -152,7 +163,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
         if (!loaded && client != null) {
             client.logMessage(new MessageParams(
                     MessageType.Warning,
-                    "No documentation.json found. Completions and diagnostics will be limited."
+                    "No documentation found. Completions and diagnostics will be limited."
             ));
         }
 
@@ -160,28 +171,27 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     }
 
     /**
-     * Attempts to load the cached documentation.json from the LSP data directory.
+     * Attempts to load the cached documentation from the LSP data directory.
      *
      * @return true if the file was found and loaded successfully
      */
     private boolean loadFromCache() {
         DocumentationData cached = DocumentationDownloader.loadCached(dataDir());
         if (cached == null) return false;
-        documentation = cached;
-        RegistryBuilder.populate(registry, types, documentation);
+        documentation = DocumentationLoader.merge(documentation, cached);
         if (client != null) {
             client.logMessage(new MessageParams(
                     MessageType.Info,
-                    "Loaded cached documentation.json with " + documentation.statements().size() + " statements, "
-                            + documentation.expressions().size() + " expressions, "
-                            + documentation.events().size() + " events"
+                    "Loaded cached documentation with " + cached.statements().size() + " statements, "
+                            + cached.expressions().size() + " expressions, "
+                            + cached.events().size() + " events"
             ));
         }
         return true;
     }
 
     /**
-     * Downloads documentation.json synchronously and loads it immediately.
+     * Downloads documentation synchronously and loads it immediately.
      *
      * @return true if the download and load succeeded
      */
@@ -191,13 +201,19 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
         }
         boolean downloaded = DocumentationDownloader.downloadAndUpdate(dataDir());
         if (!downloaded) return false;
-        return loadFromCache();
+        DocumentationData cached = DocumentationDownloader.loadCached(dataDir());
+        if (cached == null) return false;
+        documentation = DocumentationLoader.merge(documentation, cached);
+        types = new TypeRegistry();
+        registry = new PatternRegistry(types);
+        BuiltinTypeBindingsRegistrar.register(registry, types);
+        RegistryBuilder.populate(registry, types, documentation);
+        return true;
     }
 
     /**
-     * Asynchronously downloads the latest documentation.json and updates the
-     * local cache if the content has changed. The update takes effect on the
-     * next restart.
+     * Asynchronously downloads the latest documentation and updates the
+     * local cache if the content has changed.
      */
     private void asyncUpdateDocumentation() {
         CompletableFuture.runAsync(() -> {
@@ -205,7 +221,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
             if (updated && client != null) {
                 client.logMessage(new MessageParams(
                         MessageType.Info,
-                        "Downloaded updated documentation.json. Changes will take effect after restart."
+                        "Downloaded updated documentation. Restart to apply changes."
                 ));
             }
         });
@@ -221,33 +237,23 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     }
 
     /**
-     * Recursively searches for a documentation.json file starting at the given root directory.
+     * Recursively collects documentation files up to a maximum depth of three levels.
      *
-     * @param root the starting directory
-     * @return the documentation file if found, or null
+     * @param dir   the current directory
+     * @param found the accumulator list
+     * @param depth the current recursion depth
      */
-    private @Nullable File findDocumentation(@NotNull File root) {
-        File direct = new File(root, "documentation.json");
-        if (direct.isFile()) return direct;
-
-        File[] children = root.listFiles();
-        if (children == null) return null;
+    private void collectDocFiles(@NotNull File dir, @NotNull List<File> found, int depth) {
+        if (depth > 2) return;
+        File[] children = dir.listFiles();
+        if (children == null) return;
         for (File child : children) {
-            if (child.isDirectory()) {
-                File found = new File(child, "documentation.json");
-                if (found.isFile()) return found;
-                File[] grandchildren = child.listFiles();
-                if (grandchildren != null) {
-                    for (File grandchild : grandchildren) {
-                        if (grandchild.isDirectory()) {
-                            File deep = new File(grandchild, "documentation.json");
-                            if (deep.isFile()) return deep;
-                        }
-                    }
-                }
+            if (child.isFile() && child.getName().endsWith("-documentation.ldoc")) {
+                found.add(child);
+            } else if (child.isDirectory()) {
+                collectDocFiles(child, found, depth + 1);
             }
         }
-        return null;
     }
 
     @Override
@@ -300,5 +306,14 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
      */
     public @Nullable DocumentationData documentation() {
         return documentation;
+    }
+
+    /**
+     * Returns whether error diagnostics are disabled for this server instance.
+     *
+     * @return true if errors are suppressed
+     */
+    public boolean errorsDisabled() {
+        return errorsDisabled;
     }
 }
