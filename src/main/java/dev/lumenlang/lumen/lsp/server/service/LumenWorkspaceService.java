@@ -37,7 +37,7 @@ public final class LumenWorkspaceService implements WorkspaceService {
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
         boolean reload = params.getChanges().stream()
-                .anyMatch(change -> change.getUri().endsWith(".ldoc")
+                .anyMatch(change -> change.getUri().endsWith("-documentation.ldoc")
                         && change.getType() != FileChangeType.Deleted);
 
         if (reload) {

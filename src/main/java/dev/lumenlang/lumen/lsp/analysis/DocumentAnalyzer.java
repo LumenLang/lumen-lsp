@@ -452,7 +452,7 @@ public final class DocumentAnalyzer {
 
         String first = tokens.get(0).text().toLowerCase();
 
-        if (first.equals("set") && tokens.size() >= 2) {
+        if (first.equals("set") && tokens.size() >= 3 && tokens.get(2).text().equalsIgnoreCase("to")) {
             String name = tokens.get(1).text();
             RefType refType = inferTokensAfterKeyword(tokens, "to");
             handleVarDecl(stmt, name, refType, LineKind.VAR_DECL, state);
@@ -556,6 +556,11 @@ public final class DocumentAnalyzer {
      */
     private void handleVarDecl(@NotNull StatementNode stmt, @NotNull String name, @Nullable RefType refType, @NotNull LineKind kind, @NotNull AnalysisState state) {
         state.record(new LineInfo(stmt.line(), stmt.head(), kind, null, null));
+        VarDeclaration existing = state.variables().get(name);
+        if (existing != null && !existing.provided()) {
+            state.report(diagnostic(stmt, "Variable '" + name + "' is already defined in this scope on line " + existing.line(), LumenSeverity.ERROR));
+            return;
+        }
         declare(name, "Object", refType, stmt.line(), false, state);
     }
 
