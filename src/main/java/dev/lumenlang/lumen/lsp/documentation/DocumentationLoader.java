@@ -10,12 +10,11 @@ import dev.lumenlang.lumen.lsp.entries.documentation.PatternEntry;
 import dev.lumenlang.lumen.lsp.entries.documentation.TypeBindingEntry;
 import dev.lumenlang.lumen.lsp.entries.documentation.variables.BlockVariable;
 import dev.lumenlang.lumen.lsp.entries.documentation.variables.EventVariable;
+import dev.lumenlang.lumen.pipeline.documentation.LumenDoc;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,7 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Loads and parses a documentation.json file into structured {@link DocumentationData}.
+ * Loads and parses documentation files ({@code .ldoc})
+ * into structured {@link DocumentationData}.
  */
 public final class DocumentationLoader {
 
@@ -31,34 +31,80 @@ public final class DocumentationLoader {
     }
 
     /**
-     * Loads documentation data from a file at the given path.
+     * Extracts the addon name from a documentation filename.
+     * For example, {@code "Lumen-documentation.ldoc"} returns {@code "Lumen"}.
      *
-     * @param path the path to the JSON file
+     * @param filename the filename to extract from
+     * @return the addon name, or the filename itself if the pattern does not match
+     */
+    public static @NotNull String addonName(@NotNull String filename) {
+        String name = filename;
+        if (name.endsWith(LumenDoc.EXTENSION)) {
+            name = name.substring(0, name.length() - LumenDoc.EXTENSION.length());
+        }
+        if (name.endsWith("-documentation")) {
+            name = name.substring(0, name.length() - "-documentation".length());
+        }
+        return name.isEmpty() ? filename : name;
+    }
+
+    /**
+     * Loads documentation data from an {@code .ldoc} file, inferring the addon name from the filename.
+     *
+     * @param path the path to the documentation file
+     * @param by   the addon name to assign as the author of all entries
      * @return the parsed documentation data
      * @throws IOException if the file cannot be read
      */
-    public static @NotNull DocumentationData load(@NotNull Path path) throws IOException {
-        String json = Files.readString(path, StandardCharsets.UTF_8);
-        return parse(json);
+    public static @NotNull DocumentationData load(@NotNull Path path, @NotNull String by) throws IOException {
+        return parse(LumenDoc.readCompressed(path), by);
+    }
+
+    /**
+     * Merges two documentation data instances into one, concatenating all entry lists.
+     *
+     * @param a the first documentation data
+     * @param b the second documentation data
+     * @return the merged documentation data
+     */
+    public static @NotNull DocumentationData merge(@NotNull DocumentationData a, @NotNull DocumentationData b) {
+        List<PatternEntry> statements = new ArrayList<>(a.statements());
+        statements.addAll(b.statements());
+        List<PatternEntry> expressions = new ArrayList<>(a.expressions());
+        expressions.addAll(b.expressions());
+        List<PatternEntry> conditions = new ArrayList<>(a.conditions());
+        conditions.addAll(b.conditions());
+        List<BlockEntry> blocks = new ArrayList<>(a.blocks());
+        blocks.addAll(b.blocks());
+        List<PatternEntry> loopSources = new ArrayList<>(a.loopSources());
+        loopSources.addAll(b.loopSources());
+        List<EventEntry> events = new ArrayList<>(a.events());
+        events.addAll(b.events());
+        List<TypeBindingEntry> typeBindings = new ArrayList<>(a.typeBindings());
+        typeBindings.addAll(b.typeBindings());
+        String version = b.version() != null ? b.version() : a.version();
+        return new DocumentationData(version, statements, expressions, conditions,
+                blocks, loopSources, events, typeBindings);
     }
 
     /**
      * Parses the full documentation data from a raw JSON string.
      *
      * @param json the raw JSON content
+     * @param by   the addon name used as the default author
      * @return the parsed documentation data
      */
-    private static @NotNull DocumentationData parse(@NotNull String json) {
+    private static @NotNull DocumentationData parse(@NotNull String json, @NotNull String by) {
         JsonObject root = JsonParser.parseString(json).getAsJsonObject();
 
         String version = string(root, "version");
 
-        List<PatternEntry> statements = patternEntries(root, "statements");
-        List<PatternEntry> expressions = patternEntries(root, "expressions");
-        List<PatternEntry> conditions = patternEntries(root, "conditions");
-        List<BlockEntry> blocks = blockEntries(root);
-        List<PatternEntry> loopSources = patternEntries(root, "loopSources");
-        List<EventEntry> events = eventEntries(root);
+        List<PatternEntry> statements = patternEntries(root, "statements", by);
+        List<PatternEntry> expressions = patternEntries(root, "expressions", by);
+        List<PatternEntry> conditions = patternEntries(root, "conditions", by);
+        List<BlockEntry> blocks = blockEntries(root, by);
+        List<PatternEntry> loopSources = patternEntries(root, "loopSources", by);
+        List<EventEntry> events = eventEntries(root, by);
         List<TypeBindingEntry> typeBindings = typeBindingEntries(root);
 
         return new DocumentationData(version, statements, expressions, conditions, blocks, loopSources, events, typeBindings);
@@ -67,19 +113,22 @@ public final class DocumentationLoader {
     /**
      * Reads a list of pattern entries from a named array within the root JSON object.
      *
-     * @param root the root JSON object
-     * @param key  the array key to read from
+     * @param root      the root JSON object
+     * @param key       the array key to read from
+     * @param defaultBy the default author if not present in the entry
      * @return the list of parsed pattern entries
      */
-    private static @NotNull List<PatternEntry> patternEntries(@NotNull JsonObject root, @NotNull String key) {
+    private static @NotNull List<PatternEntry> patternEntries(@NotNull JsonObject root, @NotNull String key, @NotNull String defaultBy) {
         List<PatternEntry> result = new ArrayList<>();
         JsonArray arr = root.getAsJsonArray(key);
         if (arr == null) return result;
         for (JsonElement el : arr) {
             JsonObject obj = el.getAsJsonObject();
+            String by = string(obj, "by");
+            if (by == null) by = defaultBy;
             result.add(new PatternEntry(
                     stringList(obj, "patterns"),
-                    string(obj, "by"),
+                    by,
                     string(obj, "description"),
                     stringList(obj, "examples"),
                     string(obj, "since"),
@@ -95,10 +144,11 @@ public final class DocumentationLoader {
     /**
      * Reads all block entries from the root JSON object, including any block-provided variables.
      *
-     * @param root the root JSON object
+     * @param root      the root JSON object
+     * @param defaultBy the default author if not present in the entry
      * @return the list of parsed block entries
      */
-    private static @NotNull List<BlockEntry> blockEntries(@NotNull JsonObject root) {
+    private static @NotNull List<BlockEntry> blockEntries(@NotNull JsonObject root, @NotNull String defaultBy) {
         List<BlockEntry> result = new ArrayList<>();
         JsonArray arr = root.getAsJsonArray("blocks");
         if (arr == null) return result;
@@ -123,9 +173,12 @@ public final class DocumentationLoader {
                 }
             }
 
+            String by = string(obj, "by");
+            if (by == null) by = defaultBy;
+
             result.add(new BlockEntry(
                     stringList(obj, "patterns"),
-                    string(obj, "by"),
+                    by,
                     string(obj, "description"),
                     stringList(obj, "examples"),
                     string(obj, "since"),
@@ -142,10 +195,11 @@ public final class DocumentationLoader {
     /**
      * Reads all event entries from the root JSON object.
      *
-     * @param root the root JSON object
+     * @param root      the root JSON object
+     * @param defaultBy the default author if not present in the entry
      * @return the list of parsed event entries
      */
-    private static @NotNull List<EventEntry> eventEntries(@NotNull JsonObject root) {
+    private static @NotNull List<EventEntry> eventEntries(@NotNull JsonObject root, @NotNull String defaultBy) {
         List<EventEntry> result = new ArrayList<>();
         JsonArray arr = root.getAsJsonArray("events");
         if (arr == null) return result;
@@ -154,6 +208,7 @@ public final class DocumentationLoader {
             String name = string(obj, "name");
             if (name == null) continue;
             String by = string(obj, "by");
+            if (by == null) by = defaultBy;
             String className = string(obj, "className");
             String description = string(obj, "description");
             List<String> examples = stringList(obj, "examples");

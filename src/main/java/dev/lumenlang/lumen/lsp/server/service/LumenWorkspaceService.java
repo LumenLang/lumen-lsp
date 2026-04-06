@@ -11,7 +11,7 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Handles workspace-level events such as configuration changes
- * and file watching for documentation.json reloads.
+ * and file watching for documentation reloads.
  */
 public final class LumenWorkspaceService implements WorkspaceService {
 
@@ -31,12 +31,13 @@ public final class LumenWorkspaceService implements WorkspaceService {
     }
 
     /**
-     * Reloads documentation.json when a relevant file change is detected.
+     * Reloads documentation when a relevant file change is detected.
+     * Watches for {@code .ldoc} documentation files.
      */
     @Override
     public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
         boolean reload = params.getChanges().stream()
-                .anyMatch(change -> change.getUri().endsWith("documentation.json")
+                .anyMatch(change -> change.getUri().endsWith(".ldoc")
                         && change.getType() != FileChangeType.Deleted);
 
         if (reload) {
@@ -44,7 +45,7 @@ public final class LumenWorkspaceService implements WorkspaceService {
             if (server.client() != null) {
                 server.client().logMessage(new MessageParams(
                         MessageType.Info,
-                        "Reloaded documentation.json"
+                        "Reloaded documentation"
                 ));
             }
         }

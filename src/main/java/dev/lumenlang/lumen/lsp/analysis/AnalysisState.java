@@ -37,15 +37,7 @@ public record AnalysisState(PatternRegistry registry, TypeEnv env, Documentation
      * @param dataSchemas  the mutable data schemas map
      * @param scopeByLine  the mutable scope-by-line map
      */
-    public AnalysisState(@NotNull PatternRegistry registry,
-                         @NotNull TypeEnv env,
-                         @NotNull DocumentationData docs,
-                         @NotNull List<LumenDiagnostic> diagnostics,
-                         @NotNull Map<Integer, LineInfo> lineInfo,
-                         @NotNull Map<String, VarDeclaration> variables,
-                         @NotNull Map<String, VarDeclaration> allVariables,
-                         @NotNull Map<String, DataSchema> dataSchemas,
-                         @NotNull Map<Integer, Map<String, VarDeclaration>> scopeByLine) {
+    public AnalysisState(@NotNull PatternRegistry registry, @NotNull TypeEnv env, @NotNull DocumentationData docs, @NotNull List<LumenDiagnostic> diagnostics, @NotNull Map<Integer, LineInfo> lineInfo, @NotNull Map<String, VarDeclaration> variables, @NotNull Map<String, VarDeclaration> allVariables, @NotNull Map<String, DataSchema> dataSchemas, @NotNull Map<Integer, Map<String, VarDeclaration>> scopeByLine) {
         this.registry = registry;
         this.env = env;
         this.docs = docs;

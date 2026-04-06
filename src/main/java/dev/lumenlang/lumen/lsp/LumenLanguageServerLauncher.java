@@ -26,7 +26,12 @@ public final class LumenLanguageServerLauncher {
         InputStream in = System.in;
         OutputStream out = System.out;
 
-        LumenLanguageServer server = new LumenLanguageServer();
+        boolean noErrors = false;
+        for (String arg : args) {
+            if (arg.equals("--no-errors")) noErrors = true;
+        }
+
+        LumenLanguageServer server = new LumenLanguageServer(noErrors);
         Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, in, out);
         server.connect(launcher.getRemoteProxy());
         launcher.startListening().get();

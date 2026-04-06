@@ -26,10 +26,7 @@ public final class DefinitionProvider {
      * @param uri      the document URI
      * @return the list of definition locations
      */
-    public @NotNull List<Location> definition(@NotNull DefinitionParams params,
-                                              @Nullable AnalysisResult analysis,
-                                              @Nullable String source,
-                                              @NotNull String uri) {
+    public @NotNull List<Location> definition(@NotNull DefinitionParams params, @Nullable AnalysisResult analysis, @Nullable String source, @NotNull String uri) {
         if (analysis == null || source == null) return List.of();
 
         String word = wordAt(source, params.getPosition().getLine(), params.getPosition().getCharacter());

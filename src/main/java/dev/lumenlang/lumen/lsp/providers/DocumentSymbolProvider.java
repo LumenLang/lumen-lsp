@@ -48,10 +48,7 @@ public final class DocumentSymbolProvider {
      * @param docs     the documentation data
      * @param result   the list to append collected symbols to
      */
-    private void collectSymbols(@NotNull List<Node> nodes,
-                                @NotNull AnalysisResult analysis,
-                                @NotNull DocumentationData docs,
-                                @NotNull List<Either<SymbolInformation, DocumentSymbol>> result) {
+    private void collectSymbols(@NotNull List<Node> nodes, @NotNull AnalysisResult analysis, @NotNull DocumentationData docs, @NotNull List<Either<SymbolInformation, DocumentSymbol>> result) {
         for (Node node : nodes) {
             if (node instanceof BlockNode block) {
                 DocumentSymbol symbol = blockSymbol(block, docs);
@@ -138,8 +135,7 @@ public final class DocumentSymbolProvider {
      * @param analysis the analysis result
      * @return the document symbol, or null if not a tracked declaration kind
      */
-    private @Nullable DocumentSymbol statementSymbol(@NotNull StatementNode stmt,
-                                                     @NotNull AnalysisResult analysis) {
+    private @Nullable DocumentSymbol statementSymbol(@NotNull StatementNode stmt, @NotNull AnalysisResult analysis) {
         LineInfo info = analysis.lineInfo().get(stmt.line());
         if (info == null) return null;
 
@@ -149,7 +145,7 @@ public final class DocumentSymbolProvider {
                 if (varName == null) return null;
                 int line = Math.max(0, stmt.line() - 1);
                 Range range = new Range(new Position(line, 0), new Position(line, stmt.raw().length()));
-                return new DocumentSymbol("var " + varName, SymbolKind.Variable, range, range);
+                return new DocumentSymbol("set " + varName, SymbolKind.Variable, range, range);
             }
             case GLOBAL_VAR -> {
                 String varName = extractGlobalVarName(stmt);
@@ -176,57 +172,53 @@ public final class DocumentSymbolProvider {
     }
 
     /**
-     * Extracts the declared variable name from a var-declaration statement.
+     * Extracts the declared variable name from a {@code set name to expr} statement.
      *
      * @param stmt the statement node to search
      * @return the variable name, or null if not found
      */
     private @Nullable String extractVarName(@NotNull StatementNode stmt) {
         List<Token> tokens = stmt.head();
-        for (int i = 0; i < tokens.size(); i++) {
-            if (tokens.get(i).text().equalsIgnoreCase("var") && i + 1 < tokens.size()) {
-                return tokens.get(i + 1).text();
-            }
+        if (tokens.size() >= 2
+                && tokens.get(0).text().equalsIgnoreCase("set")) {
+            return tokens.get(1).text();
         }
         return null;
     }
 
     /**
-     * Extracts the declared variable name from a global var-declaration statement.
+     * Extracts the declared variable name from a {@code global name with default expr}
+     * or {@code global scoped name with default expr} statement.
      *
      * @param stmt the statement node to search
      * @return the variable name, or null if not found
      */
     private @Nullable String extractGlobalVarName(@NotNull StatementNode stmt) {
         List<Token> tokens = stmt.head();
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            if (tokens.get(i).text().equalsIgnoreCase("var")) {
-                return tokens.get(i + 1).text();
-            }
-            if (tokens.get(i).text().equalsIgnoreCase("global") && i + 1 < tokens.size()
-                    && !tokens.get(i + 1).text().equalsIgnoreCase("var")
-                    && !tokens.get(i + 1).text().equalsIgnoreCase("stored")) {
-                return tokens.get(i + 1).text();
-            }
+        if (tokens.size() >= 3
+                && tokens.get(0).text().equalsIgnoreCase("global")
+                && tokens.get(1).text().equalsIgnoreCase("scoped")) {
+            return tokens.get(2).text();
+        }
+        if (tokens.size() >= 2
+                && tokens.get(0).text().equalsIgnoreCase("global")) {
+            return tokens.get(1).text();
         }
         return null;
     }
 
     /**
-     * Extracts the declared variable name from a stored var-declaration statement.
+     * Extracts the declared variable name from a {@code global stored name with default expr} statement.
      *
      * @param stmt the statement node to search
      * @return the variable name, or null if not found
      */
     private @Nullable String extractStoreVarName(@NotNull StatementNode stmt) {
         List<Token> tokens = stmt.head();
-        for (int i = 0; i < tokens.size() - 1; i++) {
-            if (tokens.get(i).text().equalsIgnoreCase("var") || tokens.get(i).text().equalsIgnoreCase("store")) {
-                if (i + 1 < tokens.size() && !tokens.get(i + 1).text().equalsIgnoreCase("var")) {
-                    return tokens.get(i + 1).text();
-                }
-                if (i + 2 < tokens.size()) return tokens.get(i + 2).text();
-            }
+        if (tokens.size() >= 3
+                && tokens.get(0).text().equalsIgnoreCase("global")
+                && tokens.get(1).text().equalsIgnoreCase("stored")) {
+            return tokens.get(2).text();
         }
         return null;
     }

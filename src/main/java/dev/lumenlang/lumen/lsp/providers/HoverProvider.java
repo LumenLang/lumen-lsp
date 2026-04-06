@@ -35,10 +35,7 @@ public final class HoverProvider {
      * @param source   the raw source text (may be null)
      * @return the hover information, or null
      */
-    public @Nullable Hover hover(@NotNull HoverParams params,
-                                 @Nullable AnalysisResult analysis,
-                                 @NotNull DocumentationData docs,
-                                 @Nullable String source) {
+    public @Nullable Hover hover(@NotNull HoverParams params, @Nullable AnalysisResult analysis, @NotNull DocumentationData docs, @Nullable String source) {
         if (analysis == null) return null;
 
         int line = params.getPosition().getLine() + 1;
@@ -70,9 +67,7 @@ public final class HoverProvider {
      * @param docs     the documentation data
      * @return the Markdown hover string, or null if no hover is available
      */
-    private @Nullable String buildHover(@NotNull LineInfo info, int col,
-                                        @NotNull AnalysisResult analysis,
-                                        @NotNull DocumentationData docs) {
+    private @Nullable String buildHover(@NotNull LineInfo info, int col, @NotNull AnalysisResult analysis, @NotNull DocumentationData docs) {
         Token hoveredToken = tokenAt(info.tokens(), col);
 
         switch (info.kind()) {
@@ -149,8 +144,7 @@ public final class HoverProvider {
      * @param analysis the analysis result
      * @return the Markdown hover string, or null if not found
      */
-    private @Nullable String variableHover(@NotNull String name, int line,
-                                           @NotNull AnalysisResult analysis) {
+    private @Nullable String variableHover(@NotNull String name, int line, @NotNull AnalysisResult analysis) {
         Map<String, VarDeclaration> scope = analysis.scopeByLine().get(line);
         if (scope == null) return null;
         VarDeclaration var = scope.get(name);
@@ -348,14 +342,14 @@ public final class HoverProvider {
             sb.append('\n');
         }
 
-        sb.append("**Usage:**\n```luma\nset var to new ").append(typeName);
+        sb.append("**Usage:**\n```luma\nset myvar to new ").append(typeName);
         if (schema != null && !schema.fields().isEmpty()) {
             sb.append(" with");
             for (String field : schema.fields().keySet()) {
                 sb.append(" ").append(field).append(" <value>");
             }
         }
-        sb.append("\nvar f = get field \"<name>\" of var\n```\n");
+        sb.append("\nset f to get field \"<name>\" of myvar\n```\n");
         return sb.toString();
     }
 

@@ -56,9 +56,7 @@ public final class RegistryBuilder {
      * @param types    the type registry to populate
      * @param data     the loaded documentation
      */
-    public static void populate(@NotNull PatternRegistry registry,
-                                @NotNull TypeRegistry types,
-                                @NotNull DocumentationData data) {
+    public static void populate(@NotNull PatternRegistry registry, @NotNull TypeRegistry types, @NotNull DocumentationData data) {
         for (TypeBindingEntry tb : data.typeBindings()) {
             registerTypeBinding(types, tb);
         }
@@ -86,8 +84,7 @@ public final class RegistryBuilder {
      * @param types the type registry to register into
      * @param entry the type binding documentation entry
      */
-    private static void registerTypeBinding(@NotNull TypeRegistry types,
-                                            @NotNull TypeBindingEntry entry) {
+    private static void registerTypeBinding(@NotNull TypeRegistry types, @NotNull TypeBindingEntry entry) {
         if (types.get(entry.id()) != null) return;
 
         types.register(new TypeBinding() {
@@ -130,8 +127,7 @@ public final class RegistryBuilder {
      * @param registry the pattern registry to register into
      * @param entry    the pattern entry describing the statement
      */
-    private static void registerStatement(@NotNull PatternRegistry registry,
-                                          @NotNull PatternEntry entry) {
+    private static void registerStatement(@NotNull PatternRegistry registry, @NotNull PatternEntry entry) {
         PatternMeta meta = meta(entry);
         registry.statement(b -> {
             b.by(meta.by());
@@ -153,8 +149,7 @@ public final class RegistryBuilder {
      * @param registry the pattern registry to register into
      * @param entry    the pattern entry describing the expression
      */
-    private static void registerExpression(@NotNull PatternRegistry registry,
-                                           @NotNull PatternEntry entry) {
+    private static void registerExpression(@NotNull PatternRegistry registry, @NotNull PatternEntry entry) {
         PatternMeta meta = meta(entry);
         registry.expression(b -> {
             b.by(meta.by());
@@ -176,8 +171,7 @@ public final class RegistryBuilder {
      * @param registry the pattern registry to register into
      * @param entry    the pattern entry describing the condition
      */
-    private static void registerCondition(@NotNull PatternRegistry registry,
-                                          @NotNull PatternEntry entry) {
+    private static void registerCondition(@NotNull PatternRegistry registry, @NotNull PatternEntry entry) {
         PatternMeta meta = meta(entry);
         registry.condition(b -> {
             b.by(meta.by());
@@ -199,8 +193,7 @@ public final class RegistryBuilder {
      * @param registry the pattern registry to register into
      * @param entry    the block entry describing the block
      */
-    private static void registerBlock(@NotNull PatternRegistry registry,
-                                      @NotNull BlockEntry entry) {
+    private static void registerBlock(@NotNull PatternRegistry registry, @NotNull BlockEntry entry) {
         PatternMeta meta = meta(entry);
         registry.block(b -> {
             b.by(meta.by());
@@ -222,8 +215,7 @@ public final class RegistryBuilder {
      * @param registry the pattern registry to register into
      * @param entry    the pattern entry describing the loop source
      */
-    private static void registerLoop(@NotNull PatternRegistry registry,
-                                     @NotNull PatternEntry entry) {
+    private static void registerLoop(@NotNull PatternRegistry registry, @NotNull PatternEntry entry) {
         PatternMeta meta = meta(entry);
         registry.loop(b -> {
             b.by(meta.by());

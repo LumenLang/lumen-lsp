@@ -338,8 +338,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeStatements(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                    @NotNull String filter) {
+    private void completeStatements(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
         for (PatternEntry entry : docs.statements()) {
@@ -369,8 +368,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeExpressions(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                     @NotNull String filter) {
+    private void completeExpressions(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
         for (PatternEntry entry : docs.expressions()) {
@@ -400,8 +398,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeConditions(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                    @NotNull String filter) {
+    private void completeConditions(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
         for (PatternEntry entry : docs.conditions()) {
@@ -431,8 +428,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeLoopSources(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                     @NotNull String filter) {
+    private void completeLoopSources(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
         for (PatternEntry entry : docs.loopSources()) {
@@ -462,8 +458,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeBlocks(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                @NotNull String filter) {
+    private void completeBlocks(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
         for (BlockEntry entry : docs.blocks()) {
@@ -494,9 +489,7 @@ public final class CompletionProvider {
      * @param items      the list to append items to
      * @param filter     the filter prefix
      */
-    private void completeVariables(@NotNull Collection<VarDeclaration> scopedVars,
-                                   @NotNull List<CompletionItem> items,
-                                   @NotNull String filter) {
+    private void completeVariables(@NotNull Collection<VarDeclaration> scopedVars, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         for (VarDeclaration var : scopedVars) {
             if (!lower.isEmpty() && !var.name().toLowerCase().startsWith(lower)) continue;
@@ -515,9 +508,7 @@ public final class CompletionProvider {
      * @param items      the list to append items to
      * @param filter     the filter prefix
      */
-    private void completeInterpolation(@NotNull Collection<VarDeclaration> scopedVars,
-                                       @NotNull List<CompletionItem> items,
-                                       @NotNull String filter) {
+    private void completeInterpolation(@NotNull Collection<VarDeclaration> scopedVars, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         for (VarDeclaration var : scopedVars) {
             if (!lower.isEmpty() && !var.name().toLowerCase().startsWith(lower)) continue;
@@ -542,8 +533,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the partial tag text typed so far
      */
-    private void completeMiniColorize(@NotNull List<CompletionItem> items,
-                                      @NotNull String filter) {
+    private void completeMiniColorize(@NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         completeMiniColors(items, lower);
         completeMiniDecorations(items, lower);
@@ -797,8 +787,7 @@ public final class CompletionProvider {
      * @param items  the list to append items to
      * @param filter the filter prefix
      */
-    private void completeTypeBindings(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items,
-                                      @NotNull String filter) {
+    private void completeTypeBindings(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter) {
         String lower = filter.toLowerCase();
         for (TypeBindingEntry tb : docs.typeBindings()) {
             if (!lower.isEmpty() && !tb.id().toLowerCase().startsWith(lower)) continue;
@@ -822,10 +811,7 @@ public final class CompletionProvider {
      * @param filter the filter prefix
      * @param root   true when completing at the top level, false when inside a block
      */
-    private void completeTopLevel(@NotNull DocumentationData docs,
-                                  @NotNull List<CompletionItem> items,
-                                  @NotNull String filter,
-                                  boolean root) {
+    private void completeTopLevel(@NotNull DocumentationData docs, @NotNull List<CompletionItem> items, @NotNull String filter, boolean root) {
         String lower = filter.toLowerCase();
         Set<String> seen = new HashSet<>();
 
@@ -850,8 +836,10 @@ public final class CompletionProvider {
             }
         }
 
-        addKeyword(items, lower, "var", "Variable declaration", "var $1 = $0");
-        addKeyword(items, lower, "global var", "Global variable", "global var $1 default $0");
+        addKeyword(items, lower, "set", "Variable declaration", "set $1 to $0");
+        addKeyword(items, lower, "global", "Global variable", "global $1 with default $0");
+        addKeyword(items, lower, "global stored", "Stored global variable", "global stored $1 with default $0");
+        addKeyword(items, lower, "global scoped", "Scoped global variable", "global scoped $1 with default $0");
         if (root) {
             addKeyword(items, lower, "data", "Data class definition", "data $1:\n\t$0");
             addKeyword(items, lower, "config", "Config block", "config:\n\t$0");
@@ -867,11 +855,7 @@ public final class CompletionProvider {
      * @param detail  the detail text
      * @param snippet the insert snippet
      */
-    private void addKeyword(@NotNull List<CompletionItem> items,
-                            @NotNull String filter,
-                            @NotNull String label,
-                            @NotNull String detail,
-                            @NotNull String snippet) {
+    private void addKeyword(@NotNull List<CompletionItem> items, @NotNull String filter, @NotNull String label, @NotNull String detail, @NotNull String snippet) {
         if (!label.toLowerCase().startsWith(filter)) return;
         CompletionItem item = new CompletionItem(label);
         item.setKind(CompletionItemKind.Keyword);
@@ -1042,8 +1026,8 @@ public final class CompletionProvider {
      * @param analysis  the analysis result, may be null
      * @return true if the cursor is inside a data block
      */
-    private boolean isInsideDataBlock(int lineIndex, @NotNull String[] lines,
-                                      @Nullable AnalysisResult analysis) {
+    private boolean isInsideDataBlock(
+            int lineIndex, @NotNull String[] lines, @Nullable AnalysisResult analysis) {
         if (analysis != null) {
             LineInfo info = analysis.lineInfo().get(lineIndex + 1);
             if (info != null && info.kind() == LineKind.DATA_FIELD) return true;
@@ -1068,8 +1052,8 @@ public final class CompletionProvider {
      * @param analysis  the analysis result, may be null
      * @return true if the cursor is inside a config block
      */
-    private boolean isInsideConfigBlock(int lineIndex, @NotNull String[] lines,
-                                        @Nullable AnalysisResult analysis) {
+    private boolean isInsideConfigBlock(
+            int lineIndex, @NotNull String[] lines, @Nullable AnalysisResult analysis) {
         if (analysis != null) {
             LineInfo info = analysis.lineInfo().get(lineIndex + 1);
             if (info != null && info.kind() == LineKind.CONFIG_ENTRY) return true;

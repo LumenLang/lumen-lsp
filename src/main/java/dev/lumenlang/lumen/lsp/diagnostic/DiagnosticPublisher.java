@@ -44,8 +44,7 @@ public final class DiagnosticPublisher {
      * @param uri    the document URI
      * @param result the analysis result containing diagnostics
      */
-    public void publish(@NotNull LumenLanguageServer server, @NotNull String uri,
-                        @NotNull AnalysisResult result) {
+    public void publish(@NotNull LumenLanguageServer server, @NotNull String uri, @NotNull AnalysisResult result) {
         if (server.client() == null) return;
 
         // map each line number to its indent so we can offset diagnostic columns
@@ -56,6 +55,7 @@ public final class DiagnosticPublisher {
 
         List<Diagnostic> lspDiags = new ArrayList<>();
         for (LumenDiagnostic d : result.diagnostics()) {
+            if (server.errorsDisabled() && d.severity() == LumenSeverity.ERROR) continue;
             // convert 1-based line to 0-based, and shift columns by indent width
             int line = Math.max(0, d.line() - 1);
             int indent = indentByLine.getOrDefault(d.line(), 0);

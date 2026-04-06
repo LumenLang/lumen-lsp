@@ -25,15 +25,15 @@ import java.util.Set;
 public final class SemanticTokenProvider {
 
     private static final Set<String> CONTROL_KEYWORDS = Set.of(
-            "if", "else", "loop", "stop", "cancel"
+            "if", "else", "loop", "stop", "return", "cancel"
     );
 
     private static final Set<String> DECLARATION_KEYWORDS = Set.of(
-            "var", "global", "stored", "store", "java", "data"
+            "set", "global", "stored", "load", "java", "data"
     );
 
     private static final Set<String> MODIFIER_KEYWORDS = Set.of(
-            "in", "as", "default", "for", "ref", "type", "of", "from", "to"
+            "scoped", "in", "as", "with", "default", "of", "from", "to"
     );
 
     private static final Set<String> LOGIC_KEYWORDS = Set.of(
@@ -63,9 +63,7 @@ public final class SemanticTokenProvider {
      * @param docs     the documentation data
      * @return the computed semantic tokens
      */
-    public @NotNull SemanticTokens tokens(@Nullable String source,
-                                          @Nullable AnalysisResult analysis,
-                                          @NotNull DocumentationData docs) {
+    public @NotNull SemanticTokens tokens(@Nullable String source, @Nullable AnalysisResult analysis, @NotNull DocumentationData docs) {
         if (source == null) {
             return new SemanticTokens(List.of());
         }
@@ -206,9 +204,7 @@ public final class SemanticTokenProvider {
      * @param blockKeywords the block keywords from documentation
      * @return the semantic token type index
      */
-    private int classify(@NotNull Tok tok, int idx, @NotNull List<Tok> toks,
-                         @Nullable LineInfo info, @NotNull Map<String, ?> variables,
-                         @NotNull Set<String> blockKeywords) {
+    private int classify(@NotNull Tok tok, int idx, @NotNull List<Tok> toks, @Nullable LineInfo info, @NotNull Map<String, ?> variables, @NotNull Set<String> blockKeywords) {
         return switch (tok.kind) {
             case K_COMMENT -> LumenSemanticTokens.TYPE_COMMENT;
             case K_NUMBER -> LumenSemanticTokens.TYPE_NUMBER;
@@ -234,9 +230,7 @@ public final class SemanticTokenProvider {
      * @param blockKeywords the block keywords from documentation
      * @return the semantic token type index
      */
-    private int classifyIdent(@NotNull Tok tok, int idx, @NotNull List<Tok> toks,
-                              @Nullable LineInfo info, @NotNull Map<String, ?> variables,
-                              @NotNull Set<String> blockKeywords) {
+    private int classifyIdent(@NotNull Tok tok, int idx, @NotNull List<Tok> toks, @Nullable LineInfo info, @NotNull Map<String, ?> variables, @NotNull Set<String> blockKeywords) {
         String text = tok.text;
         String lower = text.toLowerCase();
 
@@ -271,17 +265,16 @@ public final class SemanticTokenProvider {
                     return LumenSemanticTokens.TYPE_FUNCTION;
                 }
                 case VAR_DECL, EXPR_VAR_DECL -> {
-                    if (lower.equals("var")) return LumenSemanticTokens.TYPE_KEYWORD;
-                    if (isVarNameTok(idx, toks)) return LumenSemanticTokens.TYPE_VARIABLE;
+                    if (lower.equals("set") || lower.equals("to")) return LumenSemanticTokens.TYPE_KEYWORD;
+                    if (isSetVarNameTok(idx, toks)) return LumenSemanticTokens.TYPE_VARIABLE;
                     if (isAnyKeyword(lower, blockKeywords)) return LumenSemanticTokens.TYPE_KEYWORD;
                     if (isInsidePlaceholder(idx, toks)) return LumenSemanticTokens.TYPE_TYPE;
                     if (variables.containsKey(text)) return LumenSemanticTokens.TYPE_VARIABLE;
                     return LumenSemanticTokens.TYPE_FUNCTION;
                 }
                 case GLOBAL_VAR -> {
-                    if (lower.equals("global") || lower.equals("var") || lower.equals("stored")
-                            || lower.equals("default") || lower.equals("for") || lower.equals("ref")
-                            || lower.equals("type")) {
+                    if (lower.equals("global") || lower.equals("scoped")
+                            || lower.equals("with") || lower.equals("default")) {
                         return LumenSemanticTokens.TYPE_KEYWORD;
                     }
                     if (isGlobalVarNameTok(idx, toks)) return LumenSemanticTokens.TYPE_NAMESPACE;
@@ -290,9 +283,8 @@ public final class SemanticTokenProvider {
                     return LumenSemanticTokens.TYPE_FUNCTION;
                 }
                 case STORE_VAR -> {
-                    if (lower.equals("stored") || lower.equals("var") || lower.equals("store")
-                            || lower.equals("default") || lower.equals("for") || lower.equals("ref")
-                            || lower.equals("type")) {
+                    if (lower.equals("global") || lower.equals("stored")
+                            || lower.equals("with") || lower.equals("default")) {
                         return LumenSemanticTokens.TYPE_KEYWORD;
                     }
                     if (isStoreVarNameTok(idx, toks)) return LumenSemanticTokens.TYPE_NAMESPACE;
@@ -428,14 +420,13 @@ public final class SemanticTokenProvider {
      * @param info the line info for context, may be null
      * @return the modifier bitmask
      */
-    private int modifiers(@NotNull Tok tok, int idx, @NotNull List<Tok> toks,
-                          @Nullable LineInfo info) {
+    private int modifiers(@NotNull Tok tok, int idx, @NotNull List<Tok> toks, @Nullable LineInfo info) {
         if (tok.kind != K_IDENT) return 0;
         int mods = 0;
 
         if (info != null) {
             if (info.kind() == LineKind.VAR_DECL || info.kind() == LineKind.EXPR_VAR_DECL) {
-                if (isVarNameTok(idx, toks)) {
+                if (isSetVarNameTok(idx, toks)) {
                     mods |= LumenSemanticTokens.MOD_DECLARATION;
                 }
             }
@@ -565,60 +556,57 @@ public final class SemanticTokenProvider {
     }
 
     /**
-     * Returns true if the token at the given index is the declared variable name in a var-declaration line.
+     * Returns true if the token at the given index is the declared variable name
+     * in a {@code set name to expr} declaration line.
      *
      * @param idx  the token index to test
      * @param toks all tokens on the line
-     * @return true if this token immediately follows the 'var' keyword
+     * @return true if this token immediately follows the 'set' keyword
      */
-    private boolean isVarNameTok(int idx, @NotNull List<Tok> toks) {
-        for (int i = 0; i < toks.size(); i++) {
-            if (toks.get(i).kind == K_IDENT && toks.get(i).text.equalsIgnoreCase("var") && i + 1 < toks.size()) {
-                Tok next = toks.get(i + 1);
-                if (next.kind == K_IDENT) {
-                    return i + 1 == idx;
-                }
-            }
+    private boolean isSetVarNameTok(int idx, @NotNull List<Tok> toks) {
+        if (toks.size() >= 2
+                && toks.get(0).kind == K_IDENT
+                && toks.get(0).text.equalsIgnoreCase("set")
+                && toks.get(1).kind == K_IDENT) {
+            return idx == 1;
         }
         return false;
     }
 
     /**
-     * Returns true if the token at the given index is the declared variable name in a global var-declaration line.
+     * Returns true if the token at the given index is the declared variable name
+     * in a {@code global name with default expr} or {@code global scoped name with default expr} line.
      *
      * @param idx  the token index to test
      * @param toks all tokens on the line
      * @return true if this token is the global variable name
      */
     private boolean isGlobalVarNameTok(int idx, @NotNull List<Tok> toks) {
-        for (int i = 0; i < toks.size(); i++) {
-            if (toks.get(i).kind == K_IDENT && toks.get(i).text.equalsIgnoreCase("var") && i + 1 < toks.size()) {
-                Tok next = toks.get(i + 1);
-                if (next.kind == K_IDENT) return i + 1 == idx;
+        if (toks.size() >= 2 && toks.get(0).kind == K_IDENT
+                && toks.get(0).text.equalsIgnoreCase("global")) {
+            if (toks.size() >= 3 && toks.get(1).kind == K_IDENT
+                    && toks.get(1).text.equalsIgnoreCase("scoped")) {
+                return idx == 2 && toks.get(2).kind == K_IDENT;
             }
-        }
-        if (toks.size() >= 2 && toks.get(0).kind == K_IDENT && toks.get(0).text.equalsIgnoreCase("global")) {
             return idx == 1 && toks.get(1).kind == K_IDENT;
         }
         return false;
     }
 
     /**
-     * Returns true if the token at the given index is the declared variable name in a stored var-declaration line.
+     * Returns true if the token at the given index is the declared variable name
+     * in a {@code global stored name with default expr} line.
      *
      * @param idx  the token index to test
      * @param toks all tokens on the line
      * @return true if this token is the stored variable name
      */
     private boolean isStoreVarNameTok(int idx, @NotNull List<Tok> toks) {
-        for (int i = 0; i < toks.size(); i++) {
-            if (toks.get(i).kind == K_IDENT && toks.get(i).text.equalsIgnoreCase("var") && i + 1 < toks.size()) {
-                Tok next = toks.get(i + 1);
-                if (next.kind == K_IDENT) return i + 1 == idx;
-            }
-        }
-        if (toks.size() >= 2 && toks.get(0).kind == K_IDENT && toks.get(0).text.equalsIgnoreCase("store")) {
-            return idx == 1 && toks.get(1).kind == K_IDENT;
+        if (toks.size() >= 3 && toks.get(0).kind == K_IDENT
+                && toks.get(0).text.equalsIgnoreCase("global")
+                && toks.get(1).kind == K_IDENT
+                && toks.get(1).text.equalsIgnoreCase("stored")) {
+            return idx == 2 && toks.get(2).kind == K_IDENT;
         }
         return false;
     }
