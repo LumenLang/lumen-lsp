@@ -8,9 +8,16 @@ The official VSCode extension is available at https://github.com/LumenLang/vscod
 
 A Language Server Protocol (LSP) server runs in the background and gives your editor features like completions, hover info, error checking, and more. Instead of building these into every editor separately, an LSP works with any editor that supports the protocol. This project is the server. You pair it with a client extension for your editor.
 
-> Most features are implemented, but some may be incomplete, slightly inaccurate, or have minor issues.
-> 
-> This LSP is designed as a fast, lightweight integration for editors and IDEs. It does not aim to provide fully exact or complete analysis of Lumen scripts, and some behavior may differ from the actual runtime. It is still designed to provide the best possible development experience within these constraints.
+> [!IMPORTANT]\
+> 2.0.0 is a work in progress. Many features from the 1.x line have not been ported yet, and some that have are still rough.
+
+> [!IMPORTANT]\
+> Starting with 2.0.0, the LSP runs the real Lumen plugin against your script, headlessly without a Minecraft server, instead of approximating it. Diagnostics, types, and resolutions match what the compiler actually does, so editor analysis lines up with build behavior.
+>
+> The current tradeoff is reanalysis cost while typing on large scripts, since every change re-runs the plugin. The 1.3.0 architecture rebuild planned for upstream Lumen will introduce a typed IR with parallel resolution, after which the LSP will switch to it and reanalysis returns to lightweight territory.
+
+> [!NOTE]\
+> Native image builds are coming soon for some platforms. They cut memory usage roughly 10x and run a bit faster than running on the JVM. They are not available yet.
 
 ## Features
 
