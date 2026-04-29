@@ -1,90 +1,60 @@
 package dev.lumenlang.lumen.lsp.diagnostic;
 
+import dev.lumenlang.lumen.api.diagnostic.LumenDiagnostic;
 import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
-import dev.lumenlang.lumen.lsp.diagnostic.util.LumenDiagnostic;
-import dev.lumenlang.lumen.lsp.diagnostic.util.LumenSeverity;
-import dev.lumenlang.lumen.lsp.server.LumenLanguageServer;
-import dev.lumenlang.lumen.pipeline.language.tokenization.Line;
+import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
+import dev.lumenlang.lumen.lsp.analysis.MetaKeys;
+import dev.lumenlang.lumen.pipeline.language.resolve.PatternSimulator;
 import org.eclipse.lsp4j.Diagnostic;
-import org.eclipse.lsp4j.DiagnosticSeverity;
-import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
-import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.services.LanguageClient;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Converts internal diagnostics to LSP diagnostics and publishes them to the client.
+ * Pushes analyser diagnostics to the LSP client, attaching the closest
+ * pattern simulator suggestion as the diagnostic data payload so editor
+ * extensions can render the suggested shape inline without issuing another
+ * round trip.
  */
 public final class DiagnosticPublisher {
 
-    /**
-     * Converts an internal diagnostic severity to the LSP diagnostic severity.
-     *
-     * @param s the internal severity
-     * @return the corresponding LSP severity
-     */
-    private static DiagnosticSeverity severity(@NotNull LumenSeverity s) {
-        return switch (s) {
-            case ERROR -> DiagnosticSeverity.Error;
-            case WARNING -> DiagnosticSeverity.Warning;
-            case INFORMATION -> DiagnosticSeverity.Information;
-            case HINT -> DiagnosticSeverity.Hint;
-        };
+    private DiagnosticPublisher() {
     }
 
     /**
-     * Publishes diagnostics for an analyzed document.
+     * Publishes the diagnostics for the given analysis. An empty list is sent
+     * when no diagnostics were produced so the client clears any prior ones.
      *
-     * @param server the language server
-     * @param uri    the document URI
-     * @param result the analysis result containing diagnostics
+     * @param client the LSP client
+     * @param result the analysis to publish
      */
-    public void publish(@NotNull LumenLanguageServer server, @NotNull String uri, @NotNull AnalysisResult result) {
-        if (server.client() == null) return;
-
-        // map each line number to its indent so we can offset diagnostic columns
-        Map<Integer, Integer> indentByLine = new HashMap<>();
-        for (Line l : result.lines()) {
-            indentByLine.put(l.lineNumber(), l.indent());
-        }
-
-        List<Diagnostic> lspDiags = new ArrayList<>();
+    public static void publish(@NotNull LanguageClient client, @NotNull AnalysisResult result) {
+        List<Diagnostic> mapped = new ArrayList<>();
         for (LumenDiagnostic d : result.diagnostics()) {
-            if (server.errorsDisabled() && d.severity() == LumenSeverity.ERROR) continue;
-            // convert 1-based line to 0-based, and shift columns by indent width
-            int line = Math.max(0, d.line() - 1);
-            int indent = indentByLine.getOrDefault(d.line(), 0);
-            int startCol = d.startColumn() + indent;
-            int endCol = d.endColumn() + indent;
-            Range range = new Range(
-                    new Position(line, startCol),
-                    new Position(line, Math.max(endCol, startCol + 1))
-            );
-
-            Diagnostic lspDiag = new Diagnostic(
-                    range, d.message()
-            );
-            lspDiag.setSeverity(severity(d.severity()));
-            lspDiag.setSource("lumen");
-            lspDiags.add(lspDiag);
+            LineAnalysis line = result.line(d.line());
+            int indent = line != null ? line.indent() : 0;
+            String suggestion = topSuggestion(line);
+            mapped.addAll(DiagnosticMapper.map(d, indent, suggestion));
         }
-
-        server.client().publishDiagnostics(new PublishDiagnosticsParams(uri, lspDiags));
+        client.publishDiagnostics(new PublishDiagnosticsParams(result.uri(), mapped));
     }
 
     /**
-     * Clears diagnostics for a document.
+     * Returns the raw pattern of the highest confidence simulator suggestion
+     * recorded on the line, or {@code null} when none was stored.
      *
-     * @param server the language server
-     * @param uri    the document URI
+     * @param line the line analysis, possibly null
+     * @return the suggestion pattern raw, or {@code null}
      */
-    public void clear(@NotNull LumenLanguageServer server, @NotNull String uri) {
-        if (server.client() == null) return;
-        server.client().publishDiagnostics(new PublishDiagnosticsParams(uri, List.of()));
+    private static @Nullable String topSuggestion(@Nullable LineAnalysis line) {
+        if (line == null) return null;
+        @SuppressWarnings("unchecked")
+        List<PatternSimulator.Suggestion> suggestions = (List<PatternSimulator.Suggestion>) line.metadata().get(MetaKeys.SUGGESTIONS);
+        if (suggestions == null || suggestions.isEmpty()) return null;
+        return suggestions.get(0).pattern().raw();
     }
 }

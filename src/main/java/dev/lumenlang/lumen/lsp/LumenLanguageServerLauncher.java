@@ -4,12 +4,10 @@ import dev.lumenlang.lumen.lsp.server.LumenLanguageServer;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
-
-import java.io.InputStream;
-import java.io.OutputStream;
+import org.jetbrains.annotations.NotNull;
 
 /**
- * Entry point for the Lumen Language Server.
+ * Process entry point for the Lumen language server.
  */
 public final class LumenLanguageServerLauncher {
 
@@ -17,22 +15,14 @@ public final class LumenLanguageServerLauncher {
     }
 
     /**
-     * Launches the language server.
+     * Starts the server on stdin/stdout and blocks until the client disconnects.
      *
-     * @param args unused
-     * @throws Exception if the launcher fails to start or the listening future is interrupted
+     * @param args ignored
+     * @throws Exception if launching or listening fails
      */
-    public static void main(String[] args) throws Exception {
-        InputStream in = System.in;
-        OutputStream out = System.out;
-
-        boolean noErrors = false;
-        for (String arg : args) {
-            if (arg.equals("--no-errors")) noErrors = true;
-        }
-
-        LumenLanguageServer server = new LumenLanguageServer(noErrors);
-        Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, in, out);
+    public static void main(@NotNull String[] args) throws Exception {
+        LumenLanguageServer server = new LumenLanguageServer();
+        Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, System.in, System.out);
         server.connect(launcher.getRemoteProxy());
         launcher.startListening().get();
     }

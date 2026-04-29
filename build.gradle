@@ -4,15 +4,17 @@ plugins {
 }
 
 group = 'dev.lumenlang'
-version = '1.0.2'
+version = '2.0.0'
 
 repositories {
     mavenCentral()
     maven { url = "https://repo.lumenlang.dev" }
+    maven { url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/" }
 }
 
 dependencies {
-    implementation "dev.lumenlang:lumen-pipeline:1.0.9-BETA"
+    implementation "dev.lumenlang:lumen-plugin:1.2.0-BETA"
+    implementation "org.spigotmc:spigot-api:1.20-R0.1-SNAPSHOT"
     implementation "org.eclipse.lsp4j:org.eclipse.lsp4j:1.0.0"
     implementation "com.google.code.gson:gson:2.13.1"
 }
@@ -23,6 +25,10 @@ java {
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-parameters']
+}
+
 jar {
     manifest {
         attributes "Main-Class": "dev.lumenlang.lumen.lsp.LumenLanguageServerLauncher"
@@ -30,7 +36,9 @@ jar {
 }
 
 shadowJar {
+    archiveBaseName.set('LumenLSP')
     archiveClassifier.set('')
+    archiveVersion.set('')
     exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
 }
 

@@ -2,20 +2,16 @@ package dev.lumenlang.lumen.lsp.server.service;
 
 import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
 import dev.lumenlang.lumen.lsp.analysis.DocumentAnalyzer;
+import dev.lumenlang.lumen.lsp.analysis.DocumentStore;
+import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
 import dev.lumenlang.lumen.lsp.diagnostic.DiagnosticPublisher;
-import dev.lumenlang.lumen.lsp.documentation.DocumentationData;
-import dev.lumenlang.lumen.lsp.providers.CompletionProvider;
-import dev.lumenlang.lumen.lsp.providers.DefinitionProvider;
-import dev.lumenlang.lumen.lsp.providers.DocumentColorProvider;
-import dev.lumenlang.lumen.lsp.providers.DocumentSymbolProvider;
-import dev.lumenlang.lumen.lsp.providers.HoverProvider;
-import dev.lumenlang.lumen.lsp.providers.SemanticTokenProvider;
+import dev.lumenlang.lumen.lsp.providers.completion.CompletionProvider;
+import dev.lumenlang.lumen.lsp.providers.definition.DefinitionProvider;
+import dev.lumenlang.lumen.lsp.providers.hover.HoverProvider;
+import dev.lumenlang.lumen.lsp.providers.inlay.InlayHintProvider;
+import dev.lumenlang.lumen.lsp.providers.semantic.SemanticTokenProvider;
+import dev.lumenlang.lumen.lsp.providers.symbol.DocumentSymbolProvider;
 import dev.lumenlang.lumen.lsp.server.LumenLanguageServer;
-import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
-import dev.lumenlang.lumen.pipeline.typebinding.TypeRegistry;
-import org.eclipse.lsp4j.ColorInformation;
-import org.eclipse.lsp4j.ColorPresentation;
-import org.eclipse.lsp4j.ColorPresentationParams;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
@@ -24,187 +20,185 @@ import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
-import org.eclipse.lsp4j.DocumentColorParams;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.DocumentSymbolParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.InlayHint;
+import org.eclipse.lsp4j.InlayHintParams;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
-import org.eclipse.lsp4j.MessageParams;
-import org.eclipse.lsp4j.MessageType;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Handles all text document events and dispatches to specialized providers.
+ * Routes textDocument/* requests, keeping the store in sync and re-running the
+ * analyser on every change.
  */
 public final class LumenTextDocumentService implements TextDocumentService {
 
-    private final LumenLanguageServer server;
-    private final DocumentAnalyzer analyzer = new DocumentAnalyzer();
-    private final Map<String, String> openDocuments = new ConcurrentHashMap<>();
-    private final Map<String, AnalysisResult> analysisCache = new ConcurrentHashMap<>();
-
-    private final CompletionProvider completionProvider;
-    private final HoverProvider hoverProvider;
-    private final SemanticTokenProvider semanticTokenProvider;
-    private final DocumentSymbolProvider documentSymbolProvider;
-    private final DefinitionProvider definitionProvider;
-    private final DocumentColorProvider documentColorProvider;
-    private final DiagnosticPublisher diagnosticPublisher;
+    private final @NotNull LumenLanguageServer server;
 
     /**
-     * Creates a new text document service backed by the given language server.
-     *
-     * @param server the parent language server providing registries and client access
+     * @param server the parent server
      */
     public LumenTextDocumentService(@NotNull LumenLanguageServer server) {
         this.server = server;
-        this.completionProvider = new CompletionProvider();
-        this.hoverProvider = new HoverProvider();
-        this.semanticTokenProvider = new SemanticTokenProvider();
-        this.documentSymbolProvider = new DocumentSymbolProvider();
-        this.definitionProvider = new DefinitionProvider();
-        this.documentColorProvider = new DocumentColorProvider();
-        this.diagnosticPublisher = new DiagnosticPublisher();
     }
 
     @Override
-    public void didOpen(DidOpenTextDocumentParams params) {
+    public void didOpen(@NotNull DidOpenTextDocumentParams params) {
         String uri = params.getTextDocument().getUri();
         String text = params.getTextDocument().getText();
-        openDocuments.put(uri, text);
-        analyzeAndPublish(uri, text);
+        server.store().text(uri, text);
+        analyzeAndPublish(uri, text, null);
     }
 
     @Override
-    public void didChange(DidChangeTextDocumentParams params) {
+    public void didChange(@NotNull DidChangeTextDocumentParams params) {
         String uri = params.getTextDocument().getUri();
         List<TextDocumentContentChangeEvent> changes = params.getContentChanges();
-        if (!changes.isEmpty()) {
-            String text = changes.get(changes.size() - 1).getText();
-            openDocuments.put(uri, text);
-            analyzeAndPublish(uri, text);
+        if (changes.isEmpty()) return;
+        String text = server.store().text(uri);
+        if (text == null) text = "";
+        Integer editLine = null;
+        for (TextDocumentContentChangeEvent change : changes) {
+            if (change.getRange() == null) {
+                text = change.getText();
+                editLine = null;
+            } else {
+                int start = offsetOf(text, change.getRange().getStart().getLine(), change.getRange().getStart().getCharacter());
+                int end = offsetOf(text, change.getRange().getEnd().getLine(), change.getRange().getEnd().getCharacter());
+                text = text.substring(0, start) + change.getText() + text.substring(end);
+                int candidate = change.getRange().getStart().getLine() + 1;
+                if (editLine == null || candidate < editLine) editLine = candidate;
+            }
         }
-    }
-
-    @Override
-    public void didClose(DidCloseTextDocumentParams params) {
-        String uri = params.getTextDocument().getUri();
-        openDocuments.remove(uri);
-        analysisCache.remove(uri);
-        diagnosticPublisher.clear(server, uri);
-    }
-
-    @Override
-    public void didSave(DidSaveTextDocumentParams params) {
-    }
-
-    @Override
-    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(CompletionParams params) {
-        return CompletableFuture.supplyAsync(() -> {
-            String uri = params.getTextDocument().getUri();
-            String source = openDocuments.get(uri);
-            DocumentationData docs = server.documentation();
-            AnalysisResult analysis = analysisCache.get(uri);
-            if (docs == null) docs = DocumentationData.EMPTY;
-
-            return Either.forLeft(completionProvider.complete(params, source, docs, analysis));
-        });
-    }
-
-    @Override
-    public CompletableFuture<Hover> hover(HoverParams params) {
-        return CompletableFuture.supplyAsync(() -> {
-            String uri = params.getTextDocument().getUri();
-            AnalysisResult analysis = analysisCache.get(uri);
-            DocumentationData docs = server.documentation();
-            String source = openDocuments.get(uri);
-            if (docs == null) docs = DocumentationData.EMPTY;
-            return hoverProvider.hover(params, analysis, docs, source);
-        });
-    }
-
-    @Override
-    public CompletableFuture<SemanticTokens> semanticTokensFull(SemanticTokensParams params) {
-        return CompletableFuture.supplyAsync(() -> {
-            String uri = params.getTextDocument().getUri();
-            AnalysisResult analysis = analysisCache.get(uri);
-            String source = openDocuments.get(uri);
-            DocumentationData docs = server.documentation();
-            if (docs == null) docs = DocumentationData.EMPTY;
-            return semanticTokenProvider.tokens(source, analysis, docs);
-        });
-    }
-
-    @Override
-    public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(DocumentSymbolParams params) {
-        return CompletableFuture.supplyAsync(() -> {
-            AnalysisResult analysis = analysisCache.get(params.getTextDocument().getUri());
-            DocumentationData docs = server.documentation();
-            if (docs == null) docs = DocumentationData.EMPTY;
-            return documentSymbolProvider.symbols(analysis, docs);
-        });
-    }
-
-    @Override
-    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(DefinitionParams params) {
-        return CompletableFuture.supplyAsync(() -> {
-            String uri = params.getTextDocument().getUri();
-            AnalysisResult analysis = analysisCache.get(uri);
-            String source = openDocuments.get(uri);
-            return Either.forLeft(definitionProvider.definition(params, analysis, source, uri));
-        });
-    }
-
-    @Override
-    public CompletableFuture<List<ColorInformation>> documentColor(DocumentColorParams params) {
-        return CompletableFuture.supplyAsync(() -> documentColorProvider.colors(openDocuments.get(params.getTextDocument().getUri())));
-    }
-
-    @Override
-    public CompletableFuture<List<ColorPresentation>> colorPresentation(ColorPresentationParams params) {
-        return CompletableFuture.supplyAsync(() -> documentColorProvider.presentations(params));
+        server.store().text(uri, text);
+        analyzeAndPublish(uri, text, editLine);
     }
 
     /**
-     * Analyzes the given document source and publishes the resulting diagnostics to the client.
+     * Returns the absolute character offset for the given 0-based line and
+     * column inside the source text, clamping to the text length when the
+     * position runs past the document end.
      *
-     * @param uri    the document URI
-     * @param source the full document text
+     * @param text the document text
+     * @param line the 0-based line
+     * @param col  the 0-based column
+     * @return the offset
      */
-    private void analyzeAndPublish(@NotNull String uri, @NotNull String source) {
-        PatternRegistry registry = server.registry();
-        DocumentationData docs = server.documentation();
-        if (registry == null) {
-            registry = new PatternRegistry(new TypeRegistry());
+    private int offsetOf(@NotNull String text, int line, int col) {
+        int offset = 0;
+        int currentLine = 0;
+        while (currentLine < line && offset < text.length()) {
+            int next = text.indexOf('\n', offset);
+            if (next < 0) return text.length();
+            offset = next + 1;
+            currentLine++;
         }
-        if (docs == null) {
-            docs = DocumentationData.EMPTY;
-        }
+        int lineEnd = text.indexOf('\n', offset);
+        if (lineEnd < 0) lineEnd = text.length();
+        int safeCol = Math.min(col, lineEnd - offset);
+        return offset + Math.max(0, safeCol);
+    }
 
-        try {
-            AnalysisResult result = analyzer.analyze(source, registry, docs);
-            analysisCache.put(uri, result);
-            diagnosticPublisher.publish(server, uri, result);
-        } catch (Exception e) {
-            if (server.client() != null) {
-                server.client().logMessage(new MessageParams(
-                        MessageType.Error,
-                        "Analysis failed: " + e.getMessage()
-                ));
-            }
+    @Override
+    public void didClose(@NotNull DidCloseTextDocumentParams params) {
+        server.store().close(params.getTextDocument().getUri());
+    }
+
+    @Override
+    public void didSave(@NotNull DidSaveTextDocumentParams params) {
+    }
+
+    @Override
+    public CompletableFuture<Hover> hover(@NotNull HoverParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        LumenBootstrap bootstrap = server.bootstrap();
+        if (analysis == null || bootstrap == null) return CompletableFuture.completedFuture(null);
+        return CompletableFuture.completedFuture(HoverProvider.hover(bootstrap, analysis, params.getPosition()));
+    }
+
+    @Override
+    public CompletableFuture<Either<List<CompletionItem>, CompletionList>> completion(@NotNull CompletionParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        String source = server.store().text(uri);
+        LumenBootstrap bootstrap = server.bootstrap();
+        if (analysis == null || source == null || bootstrap == null) {
+            return CompletableFuture.completedFuture(Either.forLeft(Collections.emptyList()));
         }
+        List<CompletionItem> items = CompletionProvider.complete(bootstrap, analysis, source, params.getPosition());
+        return CompletableFuture.completedFuture(Either.forLeft(items));
+    }
+
+    @Override
+    public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> definition(@NotNull DefinitionParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        if (analysis == null) return CompletableFuture.completedFuture(Either.forLeft(Collections.emptyList()));
+        List<Location> locs = DefinitionProvider.definition(uri, analysis, params.getPosition());
+        return CompletableFuture.completedFuture(Either.forLeft(locs));
+    }
+
+    @Override
+    public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(@NotNull DocumentSymbolParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        if (analysis == null) return CompletableFuture.completedFuture(Collections.emptyList());
+        List<DocumentSymbol> symbols = DocumentSymbolProvider.symbols(analysis);
+        List<Either<SymbolInformation, DocumentSymbol>> out = new ArrayList<>(symbols.size());
+        for (DocumentSymbol s : symbols) out.add(Either.forRight(s));
+        return CompletableFuture.completedFuture(out);
+    }
+
+    @Override
+    public CompletableFuture<List<InlayHint>> inlayHint(@NotNull InlayHintParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        if (analysis == null) return CompletableFuture.completedFuture(Collections.emptyList());
+        return CompletableFuture.completedFuture(InlayHintProvider.hints(analysis, params.getRange()));
+    }
+
+    @Override
+    public CompletableFuture<SemanticTokens> semanticTokensFull(@NotNull SemanticTokensParams params) {
+        String uri = params.getTextDocument().getUri();
+        AnalysisResult analysis = server.store().analysis(uri);
+        if (analysis == null) return CompletableFuture.completedFuture(new SemanticTokens(List.of()));
+        return CompletableFuture.completedFuture(SemanticTokenProvider.tokens(analysis));
+    }
+
+    /**
+     * Runs the analyser for the given document and publishes resulting
+     * diagnostics, scoping the reparse to the edit line when one is supplied
+     * so untouched blocks reuse their cached analyses.
+     *
+     * @param uri      the document URI
+     * @param text     the document text
+     * @param editLine the 1-based source line that changed, or {@code null} for a full reparse
+     */
+    private void analyzeAndPublish(@NotNull String uri, @NotNull String text, @Nullable Integer editLine) {
+        DocumentAnalyzer analyzer = server.analyzer();
+        LanguageClient client = server.client();
+        if (analyzer == null || client == null) return;
+        DocumentStore store = server.store();
+        AnalysisResult prior = store.analysis(uri);
+        AnalysisResult result = analyzer.analyzeIncremental(uri, text, editLine, prior);
+        store.analysis(uri, result);
+        DiagnosticPublisher.publish(client, result);
     }
 }

@@ -1,955 +1,797 @@
 package dev.lumenlang.lumen.lsp.analysis;
 
-import dev.lumenlang.lumen.api.pattern.Categories;
-import dev.lumenlang.lumen.api.pattern.PatternMeta;
-import dev.lumenlang.lumen.lsp.analysis.line.LineInfo;
-import dev.lumenlang.lumen.lsp.analysis.line.LineKind;
-import dev.lumenlang.lumen.lsp.diagnostic.util.LumenDiagnostic;
-import dev.lumenlang.lumen.lsp.diagnostic.util.LumenSeverity;
-import dev.lumenlang.lumen.lsp.documentation.DocumentationData;
-import dev.lumenlang.lumen.lsp.entries.documentation.BlockEntry;
-import dev.lumenlang.lumen.lsp.entries.documentation.EventEntry;
-import dev.lumenlang.lumen.lsp.entries.documentation.PatternEntry;
-import dev.lumenlang.lumen.lsp.entries.documentation.variables.BlockVariable;
-import dev.lumenlang.lumen.lsp.entries.documentation.variables.EventVariable;
+import dev.lumenlang.lumen.api.diagnostic.DiagnosticException;
+import dev.lumenlang.lumen.api.diagnostic.LumenDiagnostic;
+import dev.lumenlang.lumen.api.emit.BlockEnterHook;
+import dev.lumenlang.lumen.api.emit.BlockFormHandler;
+import dev.lumenlang.lumen.api.emit.ScriptLine;
+import dev.lumenlang.lumen.lsp.analysis.util.EnvCopier;
+import dev.lumenlang.lumen.lsp.analysis.util.NoopJavaOutput;
+import dev.lumenlang.lumen.lsp.analysis.util.SimpleScriptLine;
+import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
 import dev.lumenlang.lumen.pipeline.codegen.BlockContext;
+import dev.lumenlang.lumen.pipeline.codegen.CodegenContext;
+import dev.lumenlang.lumen.pipeline.codegen.HandlerContextImpl;
 import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
-import dev.lumenlang.lumen.pipeline.data.DataSchema;
 import dev.lumenlang.lumen.pipeline.language.nodes.BlockNode;
 import dev.lumenlang.lumen.pipeline.language.nodes.Node;
 import dev.lumenlang.lumen.pipeline.language.nodes.RawBlockNode;
 import dev.lumenlang.lumen.pipeline.language.nodes.StatementNode;
 import dev.lumenlang.lumen.pipeline.language.parse.LumenParser;
-import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
-import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredExpressionMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
+import dev.lumenlang.lumen.pipeline.language.resolve.PatternSimulator;
+import dev.lumenlang.lumen.pipeline.language.resolve.SuggestionDiagnostics;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Line;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Token;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Tokenizer;
-import dev.lumenlang.lumen.pipeline.language.typed.StatementClassifier;
-import dev.lumenlang.lumen.pipeline.language.typed.TypedStatement;
-import dev.lumenlang.lumen.pipeline.var.RefType;
-import dev.lumenlang.lumen.pipeline.var.VarRef;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
- * Performs full analysis of a Lumen script, producing diagnostics,
- * variable scopes, and classification results for every line.
+ * Walks a Lumen document and produces a per line analysis snapshot together
+ * with diagnostics. Supports both a full parse and an incremental reparse
+ * scoped to the innermost enclosing block of an edit.
+ *
+ * <p>Top level work splits along the upstream {@code isImportantBlock} rule:
+ * blocks recognised by a registered {@link BlockFormHandler} run sequentially
+ * because their handler mutates the shared env, while every other top level
+ * child runs in parallel against a forked env so independent blocks never
+ * wait on each other.
  */
 public final class DocumentAnalyzer {
 
-    private final Tokenizer tokenizer = new Tokenizer();
-    private final LumenParser parser = new LumenParser();
+    private final @NotNull LumenBootstrap bootstrap;
+    private final @NotNull ExecutorService pool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
 
     /**
-     * Analyzes a complete Lumen script source.
+     * Creates a new analyser bound to the given bootstrap.
      *
-     * @param source   the raw source text
-     * @param registry the pattern registry
-     * @param docs     the documentation data for event lookups
+     * @param bootstrap the populated bootstrap holding the registries
+     */
+    public DocumentAnalyzer(@NotNull LumenBootstrap bootstrap) {
+        this.bootstrap = bootstrap;
+    }
+
+    /**
+     * Tokenises, parses, and analyses the given source from scratch.
+     *
+     * @param uri    the document URI
+     * @param source the document text
      * @return the analysis result
      */
-    public @NotNull AnalysisResult analyze(@NotNull String source, @NotNull PatternRegistry registry, @NotNull DocumentationData docs) {
-        List<Line> lines;
-        BlockNode root;
-        try {
-            lines = tokenizer.tokenize(source);
-            root = parser.parse(lines);
-        } catch (Exception e) {
-            lines = List.of();
-            root = new BlockNode(-1, -1, "", List.of());
-            return new AnalysisResult(root, lines, List.of(new LumenDiagnostic(1, 0, 0,
-                    "Failed to parse script: " + (e.getMessage() != null ? e.getMessage() : "unknown error"),
-                    LumenSeverity.ERROR)), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>());
+    public @NotNull AnalysisResult analyze(@NotNull String uri, @NotNull String source) {
+        return analyzeIncremental(uri, source, null, null);
+    }
+
+    /**
+     * Analyses the given source, reusing the cached prior result for any line
+     * untouched by the edit. When {@code editLine} is non null, only the
+     * innermost enclosing block of that line and its remaining tail are
+     * recomputed. When the touched block is a registered block form, every
+     * top level independent block is also recomputed in parallel because the
+     * shared env produced by block forms feeds them. When {@code prior} is
+     * null or the AST shape changed at a level that invalidates the cache,
+     * a full parse runs instead.
+     *
+     * @param uri      the document URI
+     * @param source   the document text
+     * @param editLine the 1-based source line that changed, or {@code null} for a full parse
+     * @param prior    the previous analysis to reuse, or {@code null}
+     * @return the analysis result
+     */
+    public @NotNull AnalysisResult analyzeIncremental(@NotNull String uri, @NotNull String source, @Nullable Integer editLine, @Nullable AnalysisResult prior) {
+        List<Line> lines = new Tokenizer().tokenize(source);
+        BlockNode root = new LumenParser().parse(lines);
+        Map<Integer, Integer> indentByLine = indentMap(source);
+        CodegenContext ctx = new CodegenContext(uriToScriptName(uri));
+        ctx.setRawJavaEnabled(true);
+
+        IncrementalScope scope = editLine == null || prior == null ? null : computeScope(root, prior, editLine);
+        if (scope != null) {
+            AnalysisResult result = tryIncremental(uri, source, root, indentByLine, ctx, prior, scope);
+            if (result != null) return result;
         }
 
+        return fullAnalyze(uri, source, root, indentByLine, ctx);
+    }
+
+    /**
+     * Closes the worker pool. Should be called when the server shuts down.
+     */
+    public void shutdown() {
+        pool.shutdownNow();
+    }
+
+    /**
+     * Performs a full top down analysis: important blocks sequentially against
+     * the live env, then every other top level child in parallel against a
+     * forked env.
+     *
+     * @param uri          the document URI
+     * @param source       the raw document text used to seed the analysis result
+     * @param root         the parsed document root
+     * @param indentByLine the per line indent map
+     * @param ctx          the codegen context shared across all blocks
+     * @return the merged analysis result
+     */
+    private @NotNull AnalysisResult fullAnalyze(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContext ctx) {
         TypeEnv env = new TypeEnv();
-        env.enterBlock(new BlockContext(root, null, root.children(), 0));
+        List<LumenDiagnostic> diagnostics = new ArrayList<>();
+        List<LineAnalysis> analyses = new ArrayList<>();
 
-        AnalysisState state = new AnalysisState(
-                registry, env, docs,
-                new ArrayList<>(),
-                new HashMap<>(),
-                new HashMap<>(),
-                new HashMap<>(),
-                new HashMap<>(),
-                new HashMap<>()
-        );
+        List<Node> children = root.children();
+        List<Node> important = new ArrayList<>();
+        List<Node> independent = new ArrayList<>();
+        for (Node child : children) {
+            if (child instanceof RawBlockNode) continue;
+            if (isImportant(child)) important.add(child);
+            else independent.add(child);
+        }
 
-        checkIndentation(lines, state);
-        walk(root.children(), state);
+        for (Node child : important) {
+            walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
+        }
 
-        return new AnalysisResult(root, lines, state.diagnostics(), state.lineInfo(),
-                state.allVariables(), state.dataSchemas(), state.scopeByLine());
+        if (independent.size() <= 1) {
+            for (Node child : independent) {
+                walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
+            }
+        } else {
+            mergeParallel(independent, children, env, ctx, indentByLine, diagnostics, analyses);
+        }
+
+        analyses.sort(Comparator.comparingInt(LineAnalysis::lineNumber));
+        diagnostics.sort(Comparator.comparingInt(LumenDiagnostic::line));
+        return new AnalysisResult(uri, source, List.copyOf(diagnostics), List.copyOf(analyses));
     }
 
     /**
-     * Recursively walks a list of AST nodes, analyzing each one.
+     * Submits each independent top level block to the worker pool with its own
+     * forked env, then drains the futures and merges the per block diagnostics
+     * and analyses back into the shared accumulators.
      *
-     * @param nodes the nodes to walk
-     * @param state the current analysis state
+     * @param independent  the independent top level children
+     * @param siblings     the original sibling list, used for block context indices
+     * @param env          the env to fork from
+     * @param ctx          the codegen context
+     * @param indentByLine the per line indent map
+     * @param diagnostics  the diagnostic accumulator
+     * @param analyses     the analysis accumulator
      */
-    private void walk(@NotNull List<Node> nodes, @NotNull AnalysisState state) {
-        boolean terminated = false;
-        for (Node node : nodes) {
+    private void mergeParallel(@NotNull List<Node> independent, @NotNull List<Node> siblings, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull Map<Integer, Integer> indentByLine, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
+        List<Future<BlockResult>> futures = new ArrayList<>(independent.size());
+        for (Node child : independent) {
+            int siblingIndex = siblings.indexOf(child);
+            TypeEnv forked = env.fork();
+            futures.add(pool.submit(() -> {
+                List<LumenDiagnostic> diags = new ArrayList<>();
+                List<LineAnalysis> lines = new ArrayList<>();
+                walkOne(child, null, siblings, siblingIndex, forked, ctx, diags, lines, indentByLine);
+                return new BlockResult(diags, lines);
+            }));
+        }
+        for (Future<BlockResult> future : futures) {
             try {
-                if (terminated) {
-                    List<Token> tokens = node.head();
-                    int colStart = 0;
-                    int colEnd = 0;
-                    if (tokens != null && !tokens.isEmpty()) {
-                        colStart = tokens.get(0).start();
-                        colEnd = tokens.get(tokens.size() - 1).end();
-                    }
-                    state.report(new LumenDiagnostic(node.line(), colStart, colEnd,
-                            "Unreachable code after stop/return",
-                            LumenSeverity.ERROR));
-                }
-
-                if (node instanceof StatementNode stmt) {
-                    state.snapshot(stmt.line());
-                    classify(stmt, state);
-                    state.snapshot(stmt.line());
-                    if (!terminated && isTerminator(stmt)) {
-                        terminated = true;
-                    }
-                } else if (node instanceof RawBlockNode) {
-                    state.record(new LineInfo(node.line(), node.head(), LineKind.RAW_BLOCK, null, null));
-                    state.snapshot(node.line());
-                } else if (node instanceof BlockNode block) {
-                    analyzeBlock(block, state);
-                }
+                BlockResult result = future.get();
+                diagnostics.addAll(result.diagnostics);
+                analyses.addAll(result.analyses);
             } catch (Exception e) {
-                state.report(new LumenDiagnostic(
-                        node.line(), 0, 0,
-                        e.getMessage() != null ? e.getMessage() : "Internal analysis error",
-                        LumenSeverity.ERROR
-                ));
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                System.err.println("[LumenLSP] parallel block analysis failed: " + cause);
+                cause.printStackTrace(System.err);
             }
         }
     }
 
     /**
-     * Returns true if the given statement is a block terminator ({@code stop} or {@code return}).
+     * Computes the scope of an incremental reparse: the innermost block
+     * containing the edit line and whether that scope falls inside an important
+     * top level block. Returns {@code null} when the edit cannot be scoped to
+     * a known block boundary.
      *
-     * @param stmt the statement to check
-     * @return true if the statement terminates the block
+     * @param root     the freshly parsed document root
+     * @param prior    the previous analysis whose cache is reused
+     * @param editLine the 1-based source line that changed
+     * @return the computed scope, or {@code null} when a full parse is required
      */
-    private boolean isTerminator(@NotNull StatementNode stmt) {
-        List<Token> tokens = stmt.head();
-        if (tokens.isEmpty()) return false;
-        String first = tokens.get(0).text().toLowerCase();
-        return "stop".equals(first) || "return".equals(first);
+    private @Nullable IncrementalScope computeScope(@NotNull BlockNode root, @NotNull AnalysisResult prior, int editLine) {
+        BlockNode topLevel = findTopLevelEnclosing(root, editLine);
+        if (topLevel == null) return null;
+        BlockNode innermost = findInnermost(topLevel, editLine);
+        if (innermost == null) innermost = topLevel;
+        boolean important = isImportant(topLevel);
+        int blockEndLine = lastLineOf(innermost);
+        return new IncrementalScope(topLevel, innermost, editLine, blockEndLine, important);
     }
 
     /**
-     * Analyzes a single block node by classifying its keyword and recursively walking its children.
+     * Tries to perform the incremental reparse described by the scope, copying
+     * untouched line analyses from the prior result, replaying the dirty range
+     * inside the innermost block, and re running every top level independent
+     * block in parallel when the dirty scope is an important block.
      *
-     * @param block the block node to analyze
-     * @param state the current analysis state
+     * @param uri          the document URI
+     * @param source       the raw document text
+     * @param root         the freshly parsed document root
+     * @param indentByLine the per line indent map
+     * @param ctx          the codegen context
+     * @param prior        the previous analysis
+     * @param scope        the computed scope
+     * @return the merged analysis result, or {@code null} when the cache was unusable
      */
-    private void analyzeBlock(@NotNull BlockNode block, @NotNull AnalysisState state) {
-        List<Token> head = block.head();
-        if (head.isEmpty()) {
-            walk(block.children(), state);
-            return;
+    private @Nullable AnalysisResult tryIncremental(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContext ctx, @NotNull AnalysisResult prior, @NotNull IncrementalScope scope) {
+        LineAnalysis topHeader = lineByNumber(prior, scope.topLevel.line());
+        if (topHeader == null) return null;
+        if (lineCountOf(source) != lineCountOf(prior.source())) return null;
+        TypeEnv env = EnvCopier.copy(topHeader.beforeEnv());
+        List<LumenDiagnostic> diagnostics = new ArrayList<>();
+        List<LineAnalysis> analyses = new ArrayList<>();
+
+        List<Node> children = root.children();
+        int dirtyIndex = children.indexOf(scope.topLevel);
+        for (int i = 0; i < dirtyIndex; i++) {
+            Node child = children.get(i);
+            if (!(child instanceof BlockNode b)) continue;
+            copyBlockFromPrior(prior, b, analyses, diagnostics);
         }
 
-        String keyword = head.get(0).text().toLowerCase();
-        Map<String, VarDeclaration> outerVars = new HashMap<>(state.variables());
-        state.env().enterBlock(new BlockContext(block, state.env().blockContext(), block.children(), 0));
+        walkOne(scope.topLevel, null, children, dirtyIndex, env, ctx, diagnostics, analyses, indentByLine);
 
-        try {
-            switch (keyword) {
-                case "on" -> analyzeEventBlock(block, head, state);
-                case "if", "else" -> analyzeConditionalBlock(block, head, state);
-                case "loop" -> analyzeLoopBlock(block, head, state);
-                case "data" -> analyzeDataBlock(block, head, state);
-                case "config" -> analyzeConfigBlock(block, head, state, outerVars);
-                default -> analyzeDefaultBlock(block, head, keyword, state);
-            }
-        } finally {
-            state.env().leaveBlock();
-            state.variables().clear();
-            state.variables().putAll(outerVars);
-        }
-    }
-
-    /**
-     * Analyzes an event block, resolving the event name and injecting event variables.
-     *
-     * @param block the block node
-     * @param head  the header tokens
-     * @param state the analysis state
-     */
-    private void analyzeEventBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
-        String eventName = extractEventName(head);
-        EventEntry event = findEvent(state.docs(), eventName);
-        if (event != null) {
-            state.record(new LineInfo(block.line(), head, LineKind.EVENT_BLOCK, null, event));
-            for (EventVariable var : event.variables()) {
-                RefType refType = var.refTypeId() != null ? RefType.byId(var.refTypeId()) : null;
-                String javaType = var.javaType() != null ? var.javaType() : "Object";
-                state.env().defineVar(var.name(), new VarRef(refType, var.name()));
-                VarDeclaration decl = new VarDeclaration(var.name(), javaType, block.line(), true);
-                state.variables().put(var.name(), decl);
-                state.allVariables().put(var.name(), decl);
+        if (!scope.important) {
+            for (int i = dirtyIndex + 1; i < children.size(); i++) {
+                Node child = children.get(i);
+                if (!(child instanceof BlockNode b)) continue;
+                copyBlockFromPrior(prior, b, analyses, diagnostics);
             }
         } else {
-            state.record(new LineInfo(block.line(), head, LineKind.EVENT_BLOCK, null, null));
-            state.report(diagnostic(block, "Unknown event '" + eventName + "'", LumenSeverity.WARNING));
-        }
-        state.snapshot(block.line());
-        walk(block.children(), state);
-    }
-
-    /**
-     * Analyzes a conditional (if/else) block.
-     *
-     * @param block the block node
-     * @param head  the header tokens
-     * @param state the analysis state
-     */
-    private void analyzeConditionalBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
-        state.record(new LineInfo(block.line(), head, LineKind.CONDITIONAL, null, null));
-        state.snapshot(block.line());
-        walk(block.children(), state);
-    }
-
-    /**
-     * Analyzes a loop block, extracting the loop variable and optional value variable.
-     *
-     * @param block the block node
-     * @param head  the header tokens
-     * @param state the analysis state
-     */
-    private void analyzeLoopBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
-        BlockContext parentCtx = state.env().blockContext().parent();
-        boolean loopAtRoot = parentCtx != null && parentCtx.parent() == null;
-        if (loopAtRoot) {
-            state.report(diagnostic(block, "'loop' cannot be used at the top level", LumenSeverity.ERROR));
-        }
-
-        state.record(new LineInfo(block.line(), head, LineKind.LOOP_BLOCK, null, null));
-
-        if (head.size() >= 2) {
-            String loopVar = head.get(1).text();
-            declare(loopVar, "Object", null, block.line(), true, state);
-
-            if (head.size() >= 4 && head.get(2).text().equalsIgnoreCase("val")) {
-                String valVar = head.get(2).text();
-                declare(valVar, "Object", null, block.line(), true, state);
-            }
-        }
-
-        state.snapshot(block.line());
-        walk(block.children(), state);
-    }
-
-    /**
-     * Analyzes a data class block, parsing field declarations and building a schema.
-     *
-     * @param block the block node
-     * @param head  the header tokens
-     * @param state the analysis state
-     */
-    private void analyzeDataBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state) {
-        BlockContext parentCtx = state.env().blockContext().parent();
-        boolean atRoot = parentCtx != null && parentCtx.parent() == null;
-        if (!atRoot) {
-            state.report(diagnostic(block, "'data' cannot be used inside a block", LumenSeverity.ERROR));
-        }
-        if (head.size() < 2) {
-            state.report(diagnostic(block, "'data' requires a name", LumenSeverity.ERROR));
-        }
-
-        String typeName = head.size() >= 2 ? head.get(1).text() : "unknown";
-        state.record(new LineInfo(block.line(), head, LineKind.DATA_BLOCK, null, null));
-
-        DataSchema.Builder builder = DataSchema.builder(typeName);
-        for (Node child : block.children()) {
-            if (child instanceof StatementNode fieldStmt) {
-                List<Token> fieldTokens = fieldStmt.head();
-                state.record(new LineInfo(fieldStmt.line(), fieldTokens, LineKind.DATA_FIELD, null, null));
-                if (fieldTokens.size() >= 2) {
-                    String fieldName = fieldTokens.get(0).text();
-                    String fieldTypeName = fieldTokens.get(1).text();
-                    try {
-                        builder.field(fieldName, DataSchema.FieldType.fromName(fieldTypeName));
-                    } catch (IllegalArgumentException e) {
-                        state.report(new LumenDiagnostic(fieldStmt.line(),
-                                fieldTokens.get(1).start(), fieldTokens.get(1).end(),
-                                "Unknown data field type '" + fieldTypeName + "'",
-                                LumenSeverity.ERROR));
-                    }
-                } else if (fieldTokens.size() == 1) {
-                    state.report(new LumenDiagnostic(fieldStmt.line(),
-                            fieldTokens.get(0).start(), fieldTokens.get(0).end(),
-                            "Data field '" + fieldTokens.get(0).text() + "' is missing a type",
-                            LumenSeverity.ERROR));
+            for (int i = dirtyIndex + 1; i < children.size(); i++) {
+                Node child = children.get(i);
+                if (child instanceof RawBlockNode) continue;
+                if (isImportant(child)) {
+                    walkOne(child, null, children, i, env, ctx, diagnostics, analyses, indentByLine);
                 }
             }
+            List<Node> independent = new ArrayList<>();
+            for (int i = dirtyIndex + 1; i < children.size(); i++) {
+                Node child = children.get(i);
+                if (child instanceof RawBlockNode) continue;
+                if (!isImportant(child)) independent.add(child);
+            }
+            if (independent.size() == 1) {
+                Node child = independent.get(0);
+                walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
+            } else if (!independent.isEmpty()) {
+                mergeParallel(independent, children, env, ctx, indentByLine, diagnostics, analyses);
+            }
         }
 
-        state.dataSchemas().put(typeName.toLowerCase(), builder.build());
-        state.snapshot(block.line());
+        analyses.sort(Comparator.comparingInt(LineAnalysis::lineNumber));
+        diagnostics.sort(Comparator.comparingInt(LumenDiagnostic::line));
+        return new AnalysisResult(uri, source, List.copyOf(diagnostics), List.copyOf(analyses));
     }
 
     /**
-     * Analyzes a config block, parsing key/value entries as variables promoted to the outer scope.
+     * Returns the cached line analysis matching the given line number, or
+     * {@code null} when not found.
      *
-     * @param block     the block node
-     * @param head      the header tokens
-     * @param state     the analysis state
-     * @param outerVars the outer scope variables to propagate config entries into
+     * @param prior      the previous analysis
+     * @param lineNumber the 1-based source line number
+     * @return the line analysis, or {@code null}
      */
-    private void analyzeConfigBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull AnalysisState state, @NotNull Map<String, VarDeclaration> outerVars) {
-        BlockContext parentCtx = state.env().blockContext().parent();
-        boolean atRoot = parentCtx != null && parentCtx.parent() == null;
-        if (!atRoot) {
-            state.report(diagnostic(block, "'config' cannot be used inside a block", LumenSeverity.ERROR));
-        }
-
-        state.record(new LineInfo(block.line(), head, LineKind.CONFIG_BLOCK, null, null));
-
-        for (Node child : block.children()) {
-            if (child instanceof StatementNode entryStmt) {
-                List<Token> tokens = entryStmt.head();
-                state.record(new LineInfo(entryStmt.line(), tokens, LineKind.CONFIG_ENTRY, null, null));
-
-                if (tokens.size() >= 2) {
-                    String name = tokens.get(0).text();
-                    String valueType = inferConfigType(tokens);
-                    declare(name, valueType, null, entryStmt.line(), true, state);
-                } else if (tokens.size() == 1) {
-                    state.report(new LumenDiagnostic(entryStmt.line(),
-                            tokens.get(0).start(), tokens.get(0).end(),
-                            "Config entry '" + tokens.get(0).text() + "' is missing a value",
-                            LumenSeverity.WARNING));
-                }
-            }
-        }
-
-        outerVars.putAll(state.variables());
-        state.snapshot(block.line());
-    }
-
-    /**
-     * Analyzes a block that is not a built-in keyword, checking documentation and registry for matches.
-     *
-     * @param block   the block node
-     * @param head    the header tokens
-     * @param keyword the first token lowercased
-     * @param state   the analysis state
-     */
-    private void analyzeDefaultBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull String keyword, @NotNull AnalysisState state) {
-        BlockEntry docBlock = findBlock(state.docs(), keyword);
-        if (docBlock != null) {
-            checkNesting(block, docBlock, state);
-            state.record(new LineInfo(block.line(), head, LineKind.PATTERN_BLOCK, null, null));
-            injectVariables(docBlock, block, state);
-        } else {
-            RegisteredBlockMatch blockMatch = null;
-            try {
-                blockMatch = state.registry().matchBlock(head, state.env());
-            } catch (Exception ignored) {
-            }
-            if (blockMatch != null) {
-                state.record(new LineInfo(block.line(), head, LineKind.PATTERN_BLOCK,
-                        blockMatch.reg().meta(), null));
-                injectVariables(keyword, block, state);
-            } else {
-                classifyUnknownBlock(block, head, keyword, state);
-            }
-        }
-        state.snapshot(block.line());
-        walk(block.children(), state);
-    }
-
-    /**
-     * Classifies an unrecognized block, checking if it might be a misplaced statement or expression.
-     *
-     * @param block   the block node
-     * @param head    the header tokens
-     * @param keyword the block keyword
-     * @param state   the analysis state
-     */
-    private void classifyUnknownBlock(@NotNull BlockNode block, @NotNull List<Token> head, @NotNull String keyword, @NotNull AnalysisState state) {
-        boolean isStatement = false;
-        boolean isExpression = false;
-        try {
-            RegisteredPatternMatch stmtMatch = state.registry().matchStatement(head, state.env());
-            if (stmtMatch != null) isStatement = true;
-        } catch (Exception ignored) {
-        }
-        if (!isStatement) {
-            try {
-                RegisteredExpressionMatch exprMatch = state.registry().matchExpression(head, state.env());
-                if (exprMatch != null) isExpression = true;
-            } catch (Exception ignored) {
-            }
-        }
-        if (isStatement || isExpression) {
-            state.report(diagnostic(block, "'" + keyword + "' is not a block and cannot have indented children", LumenSeverity.ERROR));
-        } else {
-            state.report(diagnostic(block, "Unknown block '" + keyword + "'", LumenSeverity.WARNING));
-        }
-        state.record(new LineInfo(block.line(), head, LineKind.UNKNOWN_BLOCK, null, null));
-    }
-
-    /**
-     * Classifies a single statement node, first checking for variable declarations,
-     * then dispatching to the pipeline classifier and handling the result by type.
-     *
-     * @param stmt  the statement node to classify
-     * @param state the analysis state
-     */
-    private void classify(@NotNull StatementNode stmt, @NotNull AnalysisState state) {
-        if (detectVarDeclaration(stmt, state)) return;
-
-        TypedStatement typed;
-        try {
-            typed = StatementClassifier.classify(stmt, state.registry(), state.env());
-        } catch (Exception e) {
-            state.report(diagnostic(stmt,
-                    e.getMessage() != null ? e.getMessage() : "Classification error",
-                    LumenSeverity.ERROR));
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.ERROR, null, null));
-            return;
-        }
-
-        if (typed instanceof TypedStatement.ErrorStmt err) {
-            handleError(stmt, err, state);
-        } else if (typed instanceof TypedStatement.PatternStmt ps) {
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.STATEMENT,
-                    ps.match().reg().meta(), null));
-        } else if (typed instanceof TypedStatement.ExprStmt es) {
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.EXPRESSION,
-                    es.match().reg().meta(), null));
-        }
-    }
-
-    /**
-     * Detects whether a statement is a variable declaration
-     * ({@code set}, {@code global}, {@code global stored}, {@code global scoped})
-     * and records it accordingly. Called before the pipeline classifier so that
-     * variable syntax is always recognized regardless of registered patterns.
-     *
-     * @param stmt  the statement node
-     * @param state the analysis state
-     * @return true if the statement was a variable declaration
-     */
-    private boolean detectVarDeclaration(@NotNull StatementNode stmt, @NotNull AnalysisState state) {
-        List<Token> tokens = stmt.head();
-        if (tokens.isEmpty()) return false;
-
-        String first = tokens.get(0).text().toLowerCase();
-
-        if (first.equals("set") && tokens.size() >= 3 && tokens.get(2).text().equalsIgnoreCase("to")) {
-            String name = tokens.get(1).text();
-            RefType refType = inferTokensAfterKeyword(tokens, "to");
-            handleVarDecl(stmt, name, refType, LineKind.VAR_DECL, state);
-            return true;
-        }
-
-        if (first.equals("global") && tokens.size() >= 2) {
-            String second = tokens.get(1).text().toLowerCase();
-
-            if (second.equals("stored") && tokens.size() >= 3) {
-                String name = tokens.get(2).text();
-                RefType refType = inferTokensAfterKeyword(tokens, "default");
-                handleVarDecl(stmt, name, refType, LineKind.STORE_VAR, state);
-                return true;
-            }
-
-            if (second.equals("scoped") && tokens.size() >= 3) {
-                String name = tokens.get(2).text();
-                RefType refType = inferTokensAfterKeyword(tokens, "default");
-                handleVarDecl(stmt, name, refType, LineKind.GLOBAL_VAR, state);
-                return true;
-            }
-
-            String name = tokens.get(1).text();
-            RefType refType = inferTokensAfterKeyword(tokens, "default");
-            handleVarDecl(stmt, name, refType, LineKind.GLOBAL_VAR, state);
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Infers a {@link RefType} from tokens appearing after a given keyword in the token list.
-     *
-     * @param tokens  the full token list
-     * @param keyword the keyword to search for (e.g. "to", "default")
-     * @return the inferred ref type, or null if unknown
-     */
-    private @Nullable RefType inferTokensAfterKeyword(@NotNull List<Token> tokens, @NotNull String keyword) {
-        for (int i = 0; i < tokens.size(); i++) {
-            if (tokens.get(i).text().equalsIgnoreCase(keyword) && i + 1 < tokens.size()) {
-                return inferTokenRefType(tokens.subList(i + 1, tokens.size()));
-            }
+    private @Nullable LineAnalysis lineByNumber(@NotNull AnalysisResult prior, int lineNumber) {
+        for (LineAnalysis line : prior.lines()) {
+            if (line.lineNumber() == lineNumber) return line;
         }
         return null;
     }
 
     /**
-     * Handles an error classification result, applying structural matching to find
-     * close documentation patterns.
+     * Copies every cached line analysis and diagnostic that falls inside the
+     * given block's source range from the prior result into the accumulators,
+     * used to preserve untouched top level blocks across an incremental
+     * reparse.
      *
-     * @param stmt  the statement node
-     * @param err   the error classification result
-     * @param state the analysis state
+     * @param prior       the prior analysis
+     * @param block       the block whose lines to copy
+     * @param analyses    the analysis accumulator
+     * @param diagnostics the diagnostic accumulator
      */
-    private void handleError(@NotNull StatementNode stmt, @NotNull TypedStatement.ErrorStmt err, @NotNull AnalysisState state) {
-        List<Token> errorTokens = err.errorTokens();
-        int colStart = 0;
-        int colEnd = 0;
-        if (errorTokens != null && !errorTokens.isEmpty()) {
-            colStart = errorTokens.get(0).start();
-            colEnd = errorTokens.get(errorTokens.size() - 1).end();
+    private void copyBlockFromPrior(@NotNull AnalysisResult prior, @NotNull BlockNode block, @NotNull List<LineAnalysis> analyses, @NotNull List<LumenDiagnostic> diagnostics) {
+        int from = block.line();
+        int to = lastLineOf(block);
+        for (LineAnalysis line : prior.lines()) {
+            if (line.lineNumber() >= from && line.lineNumber() <= to) analyses.add(line);
         }
-
-        ClosestMatch closest = findClosestMatch(stmt.head(), state.docs());
-
-        // 90%+ confidence: treat as a successful match without warning
-        if (closest != null && closest.confidence() >= 0.90) {
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.STATEMENT,
-                    closestMeta(closest.entry(), closest.confidence()), null));
-            // 70%+ confidence: accept but warn about potential mismatch
-        } else if (closest != null && closest.confidence() >= 0.70) {
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.STATEMENT,
-                    closestMeta(closest.entry(), closest.confidence()), null));
-            int pct = (int) (closest.confidence() * 100);
-            state.report(new LumenDiagnostic(stmt.line(), colStart, colEnd,
-                    "Resolved by structural matching (" + pct + "% confidence): " + closest.pattern()
-                            + "\nThis match may not be correct.",
-                    LumenSeverity.WARNING));
-        } else {
-            state.record(new LineInfo(stmt.line(), stmt.head(), LineKind.ERROR, null, null));
-            String message = err.message();
-            if (closest != null) {
-                int pct = (int) (closest.confidence() * 100);
-                message += "\n\nClosest match (" + pct + "% confidence, may be incorrect): " + closest.pattern();
-            }
-            state.report(new LumenDiagnostic(stmt.line(), colStart, colEnd, message, LumenSeverity.ERROR));
+        for (LumenDiagnostic d : prior.diagnostics()) {
+            if (d.line() >= from && d.line() <= to) diagnostics.add(d);
         }
     }
 
     /**
-     * Handles a simple variable declaration (var, store, global), recording the line
-     * and declaring the variable in scope.
+     * Returns the count of source lines in the given text, used to detect
+     * line shifting edits that invalidate the cache.
      *
-     * @param stmt    the statement node
-     * @param name    the variable name
-     * @param refType the inferred ref type, or null
-     * @param kind    the line kind to record
-     * @param state   the analysis state
+     * @param source the document text
+     * @return the line count
      */
-    private void handleVarDecl(@NotNull StatementNode stmt, @NotNull String name, @Nullable RefType refType, @NotNull LineKind kind, @NotNull AnalysisState state) {
-        state.record(new LineInfo(stmt.line(), stmt.head(), kind, null, null));
-        VarDeclaration existing = state.variables().get(name);
-        if (existing != null && !existing.provided()) {
-            state.report(diagnostic(stmt, "Variable '" + name + "' is already defined in this scope on line " + existing.line(), LumenSeverity.ERROR));
-            return;
-        }
-        declare(name, "Object", refType, stmt.line(), false, state);
-    }
-
-    /**
-     * Declares a variable in the current scope, the all-variables map, and the type environment.
-     *
-     * @param name     the variable name
-     * @param type     the Java type name
-     * @param refType  the ref type, or null
-     * @param line     the declaration line
-     * @param provided whether this variable is provided by a block context
-     * @param state    the analysis state
-     */
-    private void declare(@NotNull String name, @NotNull String type, @Nullable RefType refType, int line, boolean provided, @NotNull AnalysisState state) {
-        VarDeclaration decl = new VarDeclaration(name, type, line, provided);
-        state.variables().put(name, decl);
-        state.allVariables().put(name, decl);
-        state.env().defineVar(name, new VarRef(refType, name));
-    }
-
-    /**
-     * Infers the {@link RefType} from expression tokens by checking for constructors
-     * like {@code new list} or {@code new map}.
-     *
-     * @param tokens the expression tokens
-     * @return the inferred ref type, or null if unrecognized
-     */
-    private @Nullable RefType inferTokenRefType(@NotNull List<Token> tokens) {
-        if (tokens.size() < 2) return null;
-        String first = tokens.get(0).text().toLowerCase();
-        if (!"new".equals(first)) return null;
-        String second = tokens.get(1).text().toLowerCase();
-        if ("list".equals(second)) return RefType.byId("LIST");
-        if ("map".equals(second)) return RefType.byId("MAP");
-        return null;
-    }
-
-    /**
-     * Searches for the closest matching pattern from documentation when a statement
-     * could not be classified.
-     *
-     * @param tokens the tokens from the unrecognized statement
-     * @param docs   the documentation data to search
-     * @return the closest match, or null if no reasonable match is found
-     */
-    private @Nullable ClosestMatch findClosestMatch(@NotNull List<Token> tokens, @NotNull DocumentationData docs) {
-        if (tokens.isEmpty()) return null;
-
-        List<String> tokenTexts = new ArrayList<>();
-        for (Token t : tokens) {
-            tokenTexts.add(t.text().toLowerCase());
-        }
-
-        String bestPattern = null;
-        PatternEntry bestEntry = null;
-        double bestConfidence = 0;
-
-        for (PatternEntry entry : docs.statements()) {
-            for (String pattern : entry.patterns()) {
-                double confidence = patternConfidence(tokenTexts, pattern);
-                if (confidence > bestConfidence) {
-                    bestConfidence = confidence;
-                    bestPattern = pattern;
-                    bestEntry = entry;
-                }
-            }
-        }
-        for (PatternEntry entry : docs.expressions()) {
-            for (String pattern : entry.patterns()) {
-                double confidence = patternConfidence(tokenTexts, pattern);
-                if (confidence > bestConfidence) {
-                    bestConfidence = confidence;
-                    bestPattern = pattern;
-                    bestEntry = entry;
-                }
-            }
-        }
-
-        if (bestPattern == null || bestConfidence < 0.30) return null;
-        return new ClosestMatch(bestPattern, bestEntry, bestConfidence);
-    }
-
-    /**
-     * Computes a confidence score (0.0 to 1.0) for how well input tokens match a pattern.
-     * Uses ordered subsequence matching (70% weight) combined with token count alignment (30% weight).
-     *
-     * @param tokenTexts the lowercased token texts
-     * @param pattern    the pattern string to score against
-     * @return the confidence score
-     */
-    private double patternConfidence(@NotNull List<String> tokenTexts, @NotNull String pattern) {
-        List<String> literals = extractLiterals(pattern);
-        if (literals.isEmpty() || tokenTexts.isEmpty()) return 0;
-
-        // first literal must match the first token exactly
-        if (!literals.get(0).equals(tokenTexts.get(0))) return 0;
-
-        // ordered subsequence match: count how many literals appear in order
-        int matched = 0;
-        int li = 0;
-        for (int ti = 0; ti < tokenTexts.size() && li < literals.size(); ti++) {
-            if (tokenTexts.get(ti).equals(literals.get(li))) {
-                matched++;
-                li++;
-            }
-        }
-        double literalRatio = (double) matched / literals.size();
-
-        // penalize token count mismatch
-        int expectedTokens = countPatternTokens(pattern);
-        int diff = tokenTexts.size() - expectedTokens;
-        double tokenFit;
-        if (diff >= 0) {
-            tokenFit = 1.0 - 0.3 * diff / Math.max(expectedTokens, 1);
-        } else {
-            tokenFit = 1.0 + (double) diff / Math.max(expectedTokens, 1);
-        }
-        tokenFit = Math.max(0, Math.min(1.0, tokenFit));
-
-        // weighted combination: 70% literal match, 30% token count fit
-        return literalRatio * 0.7 + tokenFit * 0.3;
-    }
-
-    /**
-     * Counts expected tokens in a pattern by splitting on whitespace.
-     *
-     * @param pattern the pattern string
-     * @return the expected token count
-     */
-    private int countPatternTokens(@NotNull String pattern) {
-        String[] parts = pattern.split("\\s+");
-        int count = 0;
-        for (String part : parts) {
-            if (!part.isEmpty()) count++;
+    private int lineCountOf(@NotNull String source) {
+        int count = 1;
+        for (int i = 0; i < source.length(); i++) {
+            if (source.charAt(i) == '\n') count++;
         }
         return count;
     }
 
     /**
-     * Extracts literal (non-placeholder) words from a pattern string in order.
+     * Re runs every top level independent child of the document root in
+     * parallel, used after an important block was edited.
      *
-     * @param pattern the pattern string
-     * @return the ordered list of lowercased literal words
+     * @param root         the freshly parsed document root
+     * @param env          the env to fork from after the important blocks ran
+     * @param ctx          the codegen context
+     * @param indentByLine the per line indent map
+     * @param diagnostics  the diagnostic accumulator
+     * @param analyses     the analysis accumulator
      */
-    private @NotNull List<String> extractLiterals(@NotNull String pattern) {
-        List<String> literals = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean inPlaceholder = false;
-
-        for (int i = 0; i < pattern.length(); i++) {
-            char c = pattern.charAt(i);
-            // toggle placeholder state on '%' delimiters
-            if (c == '%') {
-                inPlaceholder = !inPlaceholder;
-                if (!inPlaceholder) current.append(' ');
-                continue;
+    private void rerunIndependentTopLevels(@NotNull BlockNode root, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull Map<Integer, Integer> indentByLine, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
+        List<Node> children = root.children();
+        List<Node> independent = new ArrayList<>();
+        for (Node child : children) {
+            if (child instanceof RawBlockNode) continue;
+            if (!isImportant(child)) independent.add(child);
+        }
+        if (independent.size() <= 1) {
+            for (Node child : independent) {
+                walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
             }
-            if (!inPlaceholder) {
-                // treat brackets as word separators
-                if (c == '[' || c == ']') {
-                    current.append(' ');
-                } else if (c == '(') {
-                    // for alternation groups like (a|b|c), take only the first option
-                    int end = pattern.indexOf(')', i);
-                    if (end > i) {
-                        String group = pattern.substring(i + 1, end);
-                        current.append(' ').append(group.split("\\|")[0]).append(' ');
-                        i = end;
-                    }
-                } else {
-                    current.append(c);
-                }
-            }
+            return;
         }
+        mergeParallel(independent, children, env, ctx, indentByLine, diagnostics, analyses);
+    }
 
-        for (String word : current.toString().split("\\s+")) {
-            if (!word.isEmpty()) {
-                literals.add(word.toLowerCase());
-            }
+    /**
+     * Walks the children of the innermost block from the edit line forward,
+     * leaving everything before the edit line in the cache untouched.
+     *
+     * @param innermost    the innermost enclosing block
+     * @param editLine     the 1-based source line that changed
+     * @param block        the block context for the innermost block
+     * @param env          the live env to mutate
+     * @param ctx          the codegen context
+     * @param diagnostics  the diagnostic accumulator
+     * @param analyses     the analysis accumulator
+     * @param indentByLine the per line indent map
+     */
+    private void replayBlockTail(@NotNull BlockNode innermost, int editLine, @NotNull BlockContext block, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        if (innermost.line() >= editLine) {
+            walkOne(innermost, null, List.of(innermost), 0, env, ctx, diagnostics, analyses, indentByLine);
+            return;
         }
-        return literals;
-    }
-
-    /**
-     * Creates a synthetic {@link PatternMeta} for a structurally matched pattern.
-     *
-     * @param entry      the matched documentation entry
-     * @param confidence the confidence score
-     * @return the constructed metadata
-     */
-    private @NotNull PatternMeta closestMeta(@Nullable PatternEntry entry, double confidence) {
-        int pct = (int) (confidence * 100);
-        String note = "Matched by structural similarity (" + pct + "% confidence, may be incorrect)";
-        String desc = entry != null && entry.description() != null
-                ? note + "\n\n" + entry.description()
-                : note;
-        return new PatternMeta(
-                entry != null ? entry.by() : null,
-                desc,
-                entry != null ? entry.examples() : List.of(),
-                entry != null ? entry.since() : null,
-                entry != null && entry.category() != null ? Categories.createOrGet(entry.category()) : null,
-                entry != null && entry.deprecated()
-        );
-    }
-
-    /**
-     * Injects block-provided variables by looking up the block entry for the given keyword.
-     *
-     * @param keyword the block keyword
-     * @param block   the block node
-     * @param state   the analysis state
-     */
-    private void injectVariables(@NotNull String keyword, @NotNull BlockNode block, @NotNull AnalysisState state) {
-        BlockEntry entry = findBlock(state.docs(), keyword);
-        if (entry == null || entry.variables() == null) return;
-        injectVariables(entry, block, state);
-    }
-
-    /**
-     * Injects block-provided variables from a known block entry into the current scope.
-     *
-     * @param entry the block entry with variable definitions
-     * @param block the block node
-     * @param state the analysis state
-     */
-    private void injectVariables(@NotNull BlockEntry entry, @NotNull BlockNode block, @NotNull AnalysisState state) {
-        if (entry.variables() == null) return;
-        for (BlockVariable var : entry.variables()) {
-            RefType refType = var.refType() != null ? RefType.byId(var.refType()) : null;
-            declare(var.name(), var.type(), refType, block.line(), true, state);
+        List<Node> children = innermost.children();
+        for (int i = 0; i < children.size(); i++) {
+            Node child = children.get(i);
+            if (child.line() < editLine) continue;
+            walkOne(child, block, children, i, env, ctx, diagnostics, analyses, indentByLine);
         }
     }
 
     /**
-     * Checks whether a block is used at the correct nesting level.
+     * Builds a synthetic {@link BlockContext} for the given innermost block,
+     * matching the parent the original analyser would have produced.
      *
-     * @param block the block node
-     * @param entry the block documentation entry
-     * @param state the analysis state
+     * @param innermost the innermost block
+     * @param topLevel  the top level enclosing block, returned as the context root when the innermost is itself top level
+     * @return the block context
      */
-    private void checkNesting(@NotNull BlockNode block, @NotNull BlockEntry entry, @NotNull AnalysisState state) {
-        BlockContext parentCtx = state.env().blockContext().parent();
-        boolean atRoot = parentCtx != null && parentCtx.parent() == null;
-        if (atRoot && !entry.supportsRootLevel()) {
-            state.report(diagnostic(block,
-                    "'" + block.head().get(0).text() + "' cannot be used at the top level",
-                    LumenSeverity.ERROR));
-        }
-        if (!atRoot && !entry.supportsBlock()) {
-            state.report(diagnostic(block,
-                    "'" + block.head().get(0).text() + "' cannot be used inside a block",
-                    LumenSeverity.ERROR));
-        }
+    private @NotNull BlockContext blockContextFor(@NotNull BlockNode innermost, @NotNull BlockNode topLevel) {
+        return new BlockContext(innermost, null, List.of(innermost), 0);
     }
 
     /**
-     * Finds a block entry from documentation matching the given keyword.
+     * Returns the cached line analysis sitting immediately at or before the
+     * edit line within the innermost block, used as the env resume point.
      *
-     * @param docs    the documentation data
-     * @param keyword the block keyword
-     * @return the matching block entry, or null
+     * @param prior the previous analysis
+     * @param scope the computed scope
+     * @return the resume line, or {@code null} when none was cached
      */
-    private @Nullable BlockEntry findBlock(@NotNull DocumentationData docs, @NotNull String keyword) {
-        String lower = keyword.toLowerCase();
-        for (BlockEntry entry : docs.blocks()) {
-            for (String pattern : entry.patterns()) {
-                if (pattern.toLowerCase().startsWith(lower + " ") || pattern.toLowerCase().equals(lower)) {
-                    return entry;
-                }
-            }
+    private @Nullable LineAnalysis findResumePoint(@NotNull AnalysisResult prior, @NotNull IncrementalScope scope) {
+        LineAnalysis match = null;
+        for (LineAnalysis line : prior.lines()) {
+            if (line.lineNumber() < scope.editLine) match = line;
+            else if (line.lineNumber() == scope.editLine) return line;
+            else break;
+        }
+        if (match != null) return match;
+        return prior.lines().isEmpty() ? null : prior.lines().get(0);
+    }
+
+    /**
+     * Returns the top level child of the document root whose line range
+     * contains the given line, or {@code null} when the line falls outside
+     * every top level child.
+     *
+     * @param root the document root
+     * @param line the 1-based source line
+     * @return the enclosing top level block, or {@code null}
+     */
+    private @Nullable BlockNode findTopLevelEnclosing(@NotNull BlockNode root, int line) {
+        for (Node child : root.children()) {
+            if (!(child instanceof BlockNode block)) continue;
+            int last = lastLineOf(block);
+            if (block.line() <= line && line <= last) return block;
         }
         return null;
     }
 
     /**
-     * Extracts the event name from a block header by joining all tokens after the first.
+     * Returns the deepest descendant block of the given root whose line range
+     * contains the line, or the root itself when no descendant qualifies.
      *
-     * @param head the header token list
-     * @return the event name string
+     * @param root the block to descend from
+     * @param line the 1-based source line
+     * @return the innermost enclosing block
      */
-    private @NotNull String extractEventName(@NotNull List<Token> head) {
-        if (head.size() < 2) return "";
-        StringBuilder sb = new StringBuilder();
-        for (int i = 1; i < head.size(); i++) {
-            if (i > 1) sb.append(' ');
-            sb.append(head.get(i).text());
+    private @Nullable BlockNode findInnermost(@NotNull BlockNode root, int line) {
+        BlockNode best = root;
+        for (Node child : root.children()) {
+            if (!(child instanceof BlockNode block)) continue;
+            int last = lastLineOf(block);
+            if (block.line() <= line && line <= last) {
+                BlockNode deeper = findInnermost(block, line);
+                if (deeper != null) best = deeper;
+            }
         }
-        return sb.toString();
+        return best;
     }
 
     /**
-     * Looks up an event entry from documentation by name.
+     * Returns the largest 1-based source line covered by the given block,
+     * computed by walking its children recursively.
      *
-     * @param docs the documentation data
-     * @param name the event name
-     * @return the matching event entry, or null
+     * @param block the block to scan
+     * @return the last source line
      */
-    private @Nullable EventEntry findEvent(@NotNull DocumentationData docs, @NotNull String name) {
-        String normalized = name.replace(' ', '_').toLowerCase();
-        for (EventEntry event : docs.events()) {
-            if (event.name().replace(' ', '_').toLowerCase().equals(normalized)) {
-                return event;
+    private int lastLineOf(@NotNull BlockNode block) {
+        int last = block.line();
+        for (Node child : block.children()) {
+            if (child instanceof BlockNode b) {
+                int childLast = lastLineOf(b);
+                if (childLast > last) last = childLast;
+            } else if (child.line() > last) {
+                last = child.line();
             }
+        }
+        return last;
+    }
+
+    /**
+     * Returns whether the given node is a registered block form, mirroring
+     * the upstream {@code isImportantBlock} rule.
+     *
+     * @param node the AST node
+     * @return whether the node is a block form recognised by any registered handler
+     */
+    private boolean isImportant(@NotNull Node node) {
+        if (!(node instanceof BlockNode block)) return false;
+        for (BlockFormHandler handler : bootstrap.emit().blockForms()) {
+            if (handler.matches(block.head())) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Routes a single AST node to the right analysis path, used both by the
+     * full walker and by the incremental tail replayer.
+     *
+     * @param child        the node to analyse
+     * @param parentBlock  the parent block context, or {@code null} when at the document root
+     * @param siblings     the sibling list the node lives in
+     * @param index        the node's index inside its sibling list
+     * @param env          the live env
+     * @param ctx          the codegen context
+     * @param diagnostics  the diagnostic accumulator
+     * @param analyses     the analysis accumulator
+     * @param indentByLine the per line indent map
+     */
+    private void walkOne(@NotNull Node child, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        if (child instanceof RawBlockNode) return;
+        if (child instanceof BlockNode block) {
+            analyzeBlock(block, parentBlock, siblings, index, env, ctx, diagnostics, analyses, indentByLine);
+        } else if (child instanceof StatementNode stmt) {
+            analyzeStatement(stmt, parentBlock, siblings, index, env, ctx, diagnostics, analyses, indentByLine);
+        }
+    }
+
+    private void walk(@NotNull List<Node> children, @Nullable BlockContext parentBlock, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        for (int i = 0; i < children.size(); i++) {
+            walkOne(children.get(i), parentBlock, children, i, env, ctx, diagnostics, analyses, indentByLine);
+        }
+    }
+
+    private void analyzeStatement(@NotNull StatementNode stmt, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        List<Token> tokens = stmt.head();
+        if (tokens.isEmpty()) return;
+        int indent = indentByLine.getOrDefault(stmt.line(), 0);
+        TypeEnv before = EnvCopier.copy(env);
+        BlockContext block = parentBlock != null ? parentBlock : new BlockContext(stmt, null, siblings, index);
+        try {
+            RegisteredPatternMatch match = bootstrap.patterns().matchStatement(tokens, env);
+            if (match != null) {
+                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoopJavaOutput.INSTANCE, stmt.line(), stmt.raw());
+                match.reg().handler().handle(hctx);
+                Map<String, Object> meta = new HashMap<>();
+                meta.put(MetaKeys.STATEMENT_MATCH, match);
+                stashVarDecl(meta, match);
+                analyses.add(new LineAnalysis(stmt.line(), indent, tokens, null, before, EnvCopier.copy(env), meta));
+                return;
+            }
+            List<PatternSimulator.Suggestion> suggestions = PatternSimulator.suggestStatementsAndExpressions(tokens, bootstrap.patterns(), env);
+            LumenDiagnostic diag = buildUnknownDiagnostic("Unknown statement", stmt.line(), stmt.raw(), tokens, suggestions, env);
+            diagnostics.add(diag);
+            Map<String, Object> meta = new HashMap<>();
+            if (!suggestions.isEmpty()) meta.put(MetaKeys.SUGGESTIONS, suggestions);
+            analyses.add(new LineAnalysis(stmt.line(), indent, tokens, diag, before, null, meta));
+        } catch (DiagnosticException e) {
+            EnvCopier.restore(env, before);
+            diagnostics.add(e.diagnostic());
+            analyses.add(new LineAnalysis(stmt.line(), indent, tokens, e.diagnostic(), before, null, new HashMap<>()));
+        } catch (RuntimeException e) {
+            EnvCopier.restore(env, before);
+            LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
+                    .at(stmt.line(), stmt.raw())
+                    .build();
+            diagnostics.add(diag);
+            analyses.add(new LineAnalysis(stmt.line(), indent, tokens, diag, before, null, new HashMap<>()));
+        }
+    }
+
+    private void analyzeBlock(@NotNull BlockNode node, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        List<Token> head = node.head();
+        int indent = indentByLine.getOrDefault(node.line(), 0);
+        TypeEnv before = EnvCopier.copy(env);
+        BlockContext block = new BlockContext(node, parentBlock, siblings, index);
+        BlockFormHandler form = matchBlockForm(head);
+        if (form != null) {
+            handleBlockForm(form, node, head, indent, env, ctx, diagnostics, analyses, before, indentByLine);
+            return;
+        }
+        boolean entered = false;
+        try {
+            RegisteredBlockMatch match = head.isEmpty() ? null : bootstrap.patterns().matchBlock(head, env);
+            if (match != null) {
+                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+                env.enterBlock(block);
+                entered = true;
+                match.reg().handler().begin(hctx);
+                runBlockEnterHooks(env, ctx, block, node);
+                Map<String, Object> meta = new HashMap<>();
+                meta.put(MetaKeys.BLOCK_MATCH, match);
+                analyses.add(new LineAnalysis(node.line(), indent, head, null, before, EnvCopier.copy(env), meta));
+                walk(node.children(), block, env, ctx, diagnostics, analyses, indentByLine);
+                match.reg().handler().end(hctx);
+                env.leaveBlock();
+                entered = false;
+                return;
+            }
+            List<PatternSimulator.Suggestion> suggestions = PatternSimulator.suggestBlocks(head, bootstrap.patterns(), env);
+            LumenDiagnostic diag = buildUnknownDiagnostic("Unknown block", node.line(), node.raw(), head, suggestions, env);
+            diagnostics.add(diag);
+            Map<String, Object> meta = new HashMap<>();
+            if (!suggestions.isEmpty()) meta.put(MetaKeys.SUGGESTIONS, suggestions);
+            analyses.add(new LineAnalysis(node.line(), indent, head, diag, before, null, meta));
+            walk(node.children(), block, env, ctx, diagnostics, analyses, indentByLine);
+        } catch (DiagnosticException e) {
+            if (entered) env.leaveBlock();
+            EnvCopier.restore(env, before);
+            diagnostics.add(e.diagnostic());
+            analyses.add(new LineAnalysis(node.line(), indent, head, e.diagnostic(), before, null, new HashMap<>()));
+        } catch (RuntimeException e) {
+            if (entered) env.leaveBlock();
+            EnvCopier.restore(env, before);
+            LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
+                    .at(node.line(), node.raw())
+                    .build();
+            diagnostics.add(diag);
+            analyses.add(new LineAnalysis(node.line(), indent, head, diag, before, null, new HashMap<>()));
+        }
+    }
+
+    /**
+     * Returns the first registered block form whose matcher accepts the given
+     * head tokens, or {@code null} when none does.
+     *
+     * @param head the block header tokens, possibly empty
+     * @return the matching handler, or {@code null}
+     */
+    private @Nullable BlockFormHandler matchBlockForm(@NotNull List<Token> head) {
+        if (head.isEmpty()) return null;
+        for (BlockFormHandler handler : bootstrap.emit().blockForms()) {
+            if (handler.matches(head)) return handler;
         }
         return null;
     }
 
     /**
-     * Infers the Java type of a config entry value from its tokens.
+     * Runs the matched block form handler in the noop output sandbox and
+     * records the resulting line analysis. Children are walked separately
+     * so providers see token entries for every body line even though the
+     * handler processed them privately.
      *
-     * @param tokens the config entry tokens
-     * @return the inferred type name
+     * @param form         the matched handler
+     * @param node         the block node
+     * @param head         the head tokens
+     * @param indent       the leading whitespace count of the block header line
+     * @param env          the live type environment
+     * @param ctx          the codegen context
+     * @param diagnostics  the diagnostic accumulator
+     * @param analyses     the line analysis accumulator
+     * @param snapshot     the env snapshot used to roll back on failure
+     * @param indentByLine the per line indent map for child rows
      */
-    private @NotNull String inferConfigType(@NotNull List<Token> tokens) {
-        if (tokens.size() < 2) return "Object";
-        String value = tokens.get(1).text();
-        if (value.startsWith("\"") && value.endsWith("\"")) return "String";
-        if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) return "boolean";
-        try {
-            Double.parseDouble(value);
-            return "double";
-        } catch (NumberFormatException ignored) {
+    private void handleBlockForm(@NotNull BlockFormHandler form, @NotNull BlockNode node, @NotNull List<Token> head, int indent, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull TypeEnv snapshot, @NotNull Map<Integer, Integer> indentByLine) {
+        List<ScriptLine> children = new ArrayList<>(node.children().size());
+        for (Node child : node.children()) {
+            children.add(new SimpleScriptLine(child));
         }
-        return "Object";
+        HandlerContextImpl hctx = new HandlerContextImpl(null, env, ctx, null, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+        try {
+            form.handle(head, children, hctx);
+            Map<String, Object> meta = new HashMap<>();
+            meta.put(MetaKeys.BLOCK_FORM_NAME, head.get(0).text());
+            analyses.add(new LineAnalysis(node.line(), indent, head, null, snapshot, EnvCopier.copy(env), meta));
+            recordChildren(node, env, snapshot, analyses, indentByLine);
+        } catch (DiagnosticException e) {
+            EnvCopier.restore(env, snapshot);
+            diagnostics.add(e.diagnostic());
+            analyses.add(new LineAnalysis(node.line(), indent, head, e.diagnostic(), snapshot, null, new HashMap<>()));
+            recordChildren(node, env, snapshot, analyses, indentByLine);
+        } catch (RuntimeException e) {
+            EnvCopier.restore(env, snapshot);
+            LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
+                    .at(node.line(), node.raw())
+                    .build();
+            diagnostics.add(diag);
+            analyses.add(new LineAnalysis(node.line(), indent, head, diag, snapshot, null, new HashMap<>()));
+            recordChildren(node, env, snapshot, analyses, indentByLine);
+        }
     }
 
     /**
-     * Creates a {@link LumenDiagnostic} for a given AST node using its token range.
+     * Stores a tokens only line analysis for each statement child of a block
+     * form, so providers like the semantic tokenizer and hover can light up
+     * the body lines even though the form handler processed them privately.
      *
-     * @param node     the AST node
-     * @param message  the diagnostic message
-     * @param severity the severity
-     * @return the constructed diagnostic
+     * @param node         the block node whose children to record
+     * @param env          the env to attach as the after env on each line
+     * @param before       the env snapshot to attach as the before env on each line
+     * @param analyses     the analysis accumulator
+     * @param indentByLine the per line indent map for column shifting
      */
-    private @NotNull LumenDiagnostic diagnostic(@NotNull Node node, @NotNull String message, @NotNull LumenSeverity severity) {
-        List<Token> tokens = node.head();
-        int colStart = 0;
-        int colEnd = 0;
-        if (tokens != null && !tokens.isEmpty()) {
-            colStart = tokens.get(0).start();
-            colEnd = tokens.get(tokens.size() - 1).end();
+    private void recordChildren(@NotNull BlockNode node, @NotNull TypeEnv env, @NotNull TypeEnv before, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+        for (Node child : node.children()) {
+            if (!(child instanceof StatementNode stmt)) continue;
+            List<Token> tokens = stmt.head();
+            if (tokens.isEmpty()) continue;
+            int childIndent = indentByLine.getOrDefault(stmt.line(), 0);
+            analyses.add(new LineAnalysis(stmt.line(), childIndent, tokens, null, before, EnvCopier.copy(env), new HashMap<>()));
         }
-        return new LumenDiagnostic(node.line(), colStart, colEnd, message, severity);
     }
 
     /**
-     * Validates indentation consistency across all lines.
+     * Runs every registered block enter hook against the env now that the
+     * block has been entered, mirroring the upstream code emitter so global
+     * field bindings, persistent variable loads, and similar setup land in
+     * the env before the children are analysed.
      *
-     * @param lines the tokenized lines
-     * @param state the analysis state
+     * @param env   the live env
+     * @param ctx   the codegen context
+     * @param block the block being entered
+     * @param node  the block node providing source location
      */
-    private void checkIndentation(@NotNull List<Line> lines, @NotNull AnalysisState state) {
-        try {
-            if (lines.size() < 2) return;
-
-            // count how often each indent increment appears
-            Map<Integer, Integer> incrementCounts = new HashMap<>();
-            for (int i = 1; i < lines.size(); i++) {
-                int diff = lines.get(i).indent() - lines.get(i - 1).indent();
-                if (diff > 0) {
-                    incrementCounts.merge(diff, 1, Integer::sum);
-                }
+    private void runBlockEnterHooks(@NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull BlockContext block, @NotNull BlockNode node) {
+        HandlerContextImpl hookCtx = new HandlerContextImpl(null, env, ctx, block, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+        for (BlockEnterHook hook : bootstrap.emit().blockEnterHooks()) {
+            try {
+                hook.onBlockEnter(hookCtx);
+            } catch (RuntimeException ignored) {
             }
-            if (incrementCounts.isEmpty()) return;
-
-            // the most common increment is treated as the expected indent width
-            int dominantIncrement = incrementCounts.entrySet().stream()
-                    .max(Map.Entry.comparingByValue())
-                    .get()
-                    .getKey();
-
-            if (incrementCounts.size() > 1) {
-                state.report(new LumenDiagnostic(1, 0, 0,
-                        "Inconsistent indentation: found indent widths of " + incrementCounts.keySet()
-                                + ", expected a consistent width of " + dominantIncrement + " spaces",
-                        LumenSeverity.WARNING));
-            }
-
-            for (Line line : lines) {
-                if (line.indent() > 0 && line.indent() % dominantIncrement != 0) {
-                    state.report(new LumenDiagnostic(line.lineNumber(), 0, line.indent(),
-                            "Indent of " + line.indent()
-                                    + " spaces is not a multiple of the detected indent width ("
-                                    + dominantIncrement + ")",
-                            LumenSeverity.WARNING));
-                }
-            }
-        } catch (Exception ignored) {
         }
+    }
+
+    private @NotNull LumenDiagnostic buildUnknownDiagnostic(@NotNull String title, int line, @NotNull String raw, @NotNull List<Token> tokens, @NotNull List<PatternSimulator.Suggestion> suggestions, @NotNull TypeEnv env) {
+        if (suggestions.isEmpty()) {
+            return LumenDiagnostic.error(title)
+                    .at(line, raw)
+                    .highlight(tokens.get(0).start(), tokens.get(tokens.size() - 1).end())
+                    .build();
+        }
+        return SuggestionDiagnostics.build(title, line, raw, tokens, suggestions, env);
+    }
+
+    /**
+     * Records the variable name and its column range on the line metadata when
+     * the matched pattern is the built in set declaration.
+     *
+     * @param meta  the metadata bag to populate
+     * @param match the matched statement
+     */
+    private void stashVarDecl(@NotNull Map<String, Object> meta, @NotNull RegisteredPatternMatch match) {
+        if (!"set %name:IDENT% to %val:EXPR%".equals(match.reg().pattern().raw())) return;
+        var nameBound = match.match().values().get("name");
+        if (nameBound == null || nameBound.tokens().isEmpty()) return;
+        Token nameToken = nameBound.tokens().get(0);
+        meta.put(MetaKeys.VAR_DECL_NAME, nameToken.text());
+        meta.put(MetaKeys.VAR_DECL_RANGE, new int[]{nameToken.start(), nameToken.end()});
+    }
+
+    /**
+     * Maps each 1-based source line number to the count of leading whitespace
+     * characters on that line, used to translate tokeniser local positions
+     * into document absolute positions.
+     *
+     * @param source the document text
+     * @return the per line indent in characters
+     */
+    private @NotNull Map<Integer, Integer> indentMap(@NotNull String source) {
+        String[] split = source.split("\\r?\\n", -1);
+        Map<Integer, Integer> out = new HashMap<>();
+        for (int i = 0; i < split.length; i++) {
+            String line = split[i];
+            int p = 0;
+            while (p < line.length() && (line.charAt(p) == ' ' || line.charAt(p) == '\t')) p++;
+            out.put(i + 1, p);
+        }
+        return out;
+    }
+
+    /**
+     * Derives the script name passed to {@link CodegenContext} from the
+     * document URI, ensuring it ends with the {@code .luma} suffix.
+     *
+     * @param uri the document URI
+     * @return the script name
+     */
+    private @NotNull String uriToScriptName(@NotNull String uri) {
+        int slash = uri.lastIndexOf('/');
+        String name = slash >= 0 ? uri.substring(slash + 1) : uri;
+        if (!name.endsWith(".luma")) name = name + ".luma";
+        return name;
+    }
+
+    /**
+     * Carries the resolved scope of an incremental reparse, namely the top
+     * level block being touched, the innermost block whose tail is being
+     * replayed, the dirty edit line, the last source line covered by the
+     * innermost block, and whether the top level block is a registered block
+     * form.
+     *
+     * @param topLevel     the enclosing top level block
+     * @param innermost    the innermost block whose tail is replayed
+     * @param editLine     the 1-based source line that changed
+     * @param blockEndLine the last source line covered by the innermost block
+     * @param important    whether the top level block runs sequentially
+     */
+    private record IncrementalScope(@NotNull BlockNode topLevel, @NotNull BlockNode innermost, int editLine, int blockEndLine, boolean important) {
+    }
+
+    /**
+     * Result of a single parallel block analysis worker, carrying the
+     * diagnostics and per line analyses produced inside its forked env.
+     *
+     * @param diagnostics the diagnostics produced
+     * @param analyses    the line analyses produced
+     */
+    private record BlockResult(@NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
     }
 }

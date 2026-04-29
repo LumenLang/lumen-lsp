@@ -1,16 +1,11 @@
 package dev.lumenlang.lumen.lsp.server;
 
-import dev.lumenlang.lumen.lsp.documentation.DocumentationData;
-import dev.lumenlang.lumen.lsp.documentation.DocumentationDownloader;
-import dev.lumenlang.lumen.lsp.documentation.DocumentationLoader;
+import dev.lumenlang.lumen.lsp.analysis.DocumentAnalyzer;
+import dev.lumenlang.lumen.lsp.analysis.DocumentStore;
+import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
 import dev.lumenlang.lumen.lsp.server.service.LumenTextDocumentService;
 import dev.lumenlang.lumen.lsp.server.service.LumenWorkspaceService;
-import dev.lumenlang.lumen.lsp.server.tokens.LumenSemanticTokens;
-import dev.lumenlang.lumen.lsp.typebindings.BuiltinTypeBindingsRegistrar;
-import dev.lumenlang.lumen.lsp.typebindings.util.RegistryBuilder;
-import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
-import dev.lumenlang.lumen.pipeline.typebinding.TypeRegistry;
-import org.eclipse.lsp4j.ColorProviderOptions;
+import dev.lumenlang.lumen.lsp.providers.semantic.SemanticLegend;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
@@ -21,6 +16,8 @@ import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
+
+import java.util.List;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageClientAware;
 import org.eclipse.lsp4j.services.LanguageServer;
@@ -29,230 +26,51 @@ import org.eclipse.lsp4j.services.WorkspaceService;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.net.URI;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Core language server implementation for the Lumen language.
- *
- * <p>Handles initialization, capability negotiation, documentation loading,
- * and delegates document operations to {@link LumenTextDocumentService}.
+ * Top level Lumen language server.
  */
-@SuppressWarnings("DataFlowIssue")
 public final class LumenLanguageServer implements LanguageServer, LanguageClientAware {
 
-    private final LumenTextDocumentService textDocumentService;
-    private final LumenWorkspaceService workspaceService;
-    private final @NotNull List<Path> workspaceFolders = new ArrayList<>();
-    private final boolean errorsDisabled;
+    private final @NotNull DocumentStore store = new DocumentStore();
+    private final @NotNull LumenTextDocumentService textDocumentService;
+    private final @NotNull LumenWorkspaceService workspaceService;
     private @Nullable LanguageClient client;
-    private @Nullable PatternRegistry registry;
-    private @Nullable TypeRegistry types;
-    private @Nullable DocumentationData documentation;
+    private @Nullable DocumentAnalyzer analyzer;
+    private @Nullable LumenBootstrap bootstrap;
 
     /**
-     * Creates a new language server with its document and workspace services.
-     *
-     * @param errorsDisabled when true, error diagnostics are suppressed entirely
+     * Creates a new server, deferring registry init until {@link #initialize}.
      */
-    public LumenLanguageServer(boolean errorsDisabled) {
-        this.errorsDisabled = errorsDisabled;
+    public LumenLanguageServer() {
         this.textDocumentService = new LumenTextDocumentService(this);
         this.workspaceService = new LumenWorkspaceService(this);
     }
 
-    /**
-     * Registers server capabilities including completion, hover, semantic tokens,
-     * document symbols, go to definition, and color support.
-     */
     @Override
-    public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
-        if (params.getWorkspaceFolders() != null) {
-            for (var folder : params.getWorkspaceFolders()) {
-                workspaceFolders.add(Path.of(URI.create(folder.getUri())));
-            }
-        }
-
+    public CompletableFuture<InitializeResult> initialize(@NotNull InitializeParams params) {
+        bootstrap = LumenBootstrap.get();
+        analyzer = new DocumentAnalyzer(bootstrap);
         ServerCapabilities capabilities = new ServerCapabilities();
-        capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
-        capabilities.setCompletionProvider(new CompletionOptions(false, List.of(":", "%", " ", "{", "<")));
+        capabilities.setTextDocumentSync(TextDocumentSyncKind.Incremental);
         capabilities.setHoverProvider(true);
-        capabilities.setDocumentSymbolProvider(true);
         capabilities.setDefinitionProvider(true);
-        capabilities.setColorProvider(new ColorProviderOptions());
-
-        SemanticTokensLegend legend = new SemanticTokensLegend(
-                LumenSemanticTokens.TOKEN_TYPES,
-                LumenSemanticTokens.TOKEN_MODIFIERS
-        );
-        SemanticTokensWithRegistrationOptions semanticOptions = new SemanticTokensWithRegistrationOptions();
-        semanticOptions.setLegend(legend);
-        semanticOptions.setFull(true);
-        semanticOptions.setRange(false);
-        capabilities.setSemanticTokensProvider(semanticOptions);
-
+        capabilities.setDocumentSymbolProvider(true);
+        capabilities.setInlayHintProvider(true);
+        capabilities.setCompletionProvider(new CompletionOptions(false, List.of(" ", "\n")));
+        SemanticTokensWithRegistrationOptions semantic = new SemanticTokensWithRegistrationOptions();
+        semantic.setLegend(new SemanticTokensLegend(SemanticLegend.TYPES, SemanticLegend.MODIFIERS));
+        semantic.setFull(true);
+        semantic.setRange(false);
+        capabilities.setSemanticTokensProvider(semantic);
         return CompletableFuture.completedFuture(new InitializeResult(capabilities));
     }
 
-    /**
-     * Triggers documentation loading once the client signals readiness.
-     */
     @Override
-    public void initialized(InitializedParams params) {
-        loadDocumentation();
+    public void initialized(@NotNull InitializedParams params) {
         if (client != null) {
-            client.logMessage(new MessageParams(MessageType.Info, "Lumen LSP initialized"));
-        }
-    }
-
-    /**
-     * Loads the documentation from the local cache or workspace, populating
-     * the pattern registry and type registry used for completions and diagnostics.
-     * After loading, kicks off an async download to check for updates.
-     */
-    public void loadDocumentation() {
-        types = new TypeRegistry();
-        registry = new PatternRegistry(types);
-        BuiltinTypeBindingsRegistrar.register(registry, types);
-        documentation = DocumentationData.EMPTY;
-
-        boolean loaded = loadFromCache();
-
-        for (Path folder : workspaceFolders) {
-            List<File> docFiles = new ArrayList<>();
-            collectDocFiles(folder.toFile(), docFiles, 0);
-            for (File docFile : docFiles) {
-                try {
-                    String by = DocumentationLoader.addonName(docFile.getName());
-                    DocumentationData workspaceDocs = DocumentationLoader.load(docFile.toPath(), by);
-                    documentation = DocumentationLoader.merge(documentation, workspaceDocs);
-                    loaded = true;
-                    if (client != null) {
-                        client.logMessage(new MessageParams(
-                                MessageType.Info,
-                                "Loaded workspace documentation '" + docFile.getName() + "' with "
-                                        + workspaceDocs.statements().size() + " statements, "
-                                        + workspaceDocs.expressions().size() + " expressions, "
-                                        + workspaceDocs.events().size() + " events"
-                        ));
-                    }
-                } catch (Exception e) {
-                    if (client != null) {
-                        client.logMessage(new MessageParams(MessageType.Error,
-                                "Failed to load workspace documentation '" + docFile.getName() + "': " + e.getMessage()));
-                    }
-                }
-            }
-        }
-
-        if (loaded) {
-            types = new TypeRegistry();
-            registry = new PatternRegistry(types);
-            BuiltinTypeBindingsRegistrar.register(registry, types);
-            RegistryBuilder.populate(registry, types, documentation);
-        }
-
-        if (!loaded) {
-            loaded = forceDownload();
-        }
-
-        if (!loaded && client != null) {
-            client.logMessage(new MessageParams(
-                    MessageType.Warning,
-                    "No documentation found. Completions and diagnostics will be limited."
-            ));
-        }
-
-        asyncUpdateDocumentation();
-    }
-
-    /**
-     * Attempts to load the cached documentation from the LSP data directory.
-     *
-     * @return true if the file was found and loaded successfully
-     */
-    private boolean loadFromCache() {
-        DocumentationData cached = DocumentationDownloader.loadCached(dataDir());
-        if (cached == null) return false;
-        documentation = DocumentationLoader.merge(documentation, cached);
-        if (client != null) {
-            client.logMessage(new MessageParams(
-                    MessageType.Info,
-                    "Loaded cached documentation with " + cached.statements().size() + " statements, "
-                            + cached.expressions().size() + " expressions, "
-                            + cached.events().size() + " events"
-            ));
-        }
-        return true;
-    }
-
-    /**
-     * Downloads documentation synchronously and loads it immediately.
-     *
-     * @return true if the download and load succeeded
-     */
-    private boolean forceDownload() {
-        if (client != null) {
-            client.logMessage(new MessageParams(MessageType.Info, "No cached documentation found, downloading..."));
-        }
-        boolean downloaded = DocumentationDownloader.downloadAndUpdate(dataDir());
-        if (!downloaded) return false;
-        DocumentationData cached = DocumentationDownloader.loadCached(dataDir());
-        if (cached == null) return false;
-        documentation = DocumentationLoader.merge(documentation, cached);
-        types = new TypeRegistry();
-        registry = new PatternRegistry(types);
-        BuiltinTypeBindingsRegistrar.register(registry, types);
-        RegistryBuilder.populate(registry, types, documentation);
-        return true;
-    }
-
-    /**
-     * Asynchronously downloads the latest documentation and updates the
-     * local cache if the content has changed.
-     */
-    private void asyncUpdateDocumentation() {
-        CompletableFuture.runAsync(() -> {
-            boolean updated = DocumentationDownloader.downloadAndUpdate(dataDir());
-            if (updated && client != null) {
-                client.logMessage(new MessageParams(
-                        MessageType.Info,
-                        "Downloaded updated documentation. Restart to apply changes."
-                ));
-            }
-        });
-    }
-
-    /**
-     * Returns the LSP data directory for storing cached files.
-     *
-     * @return the data directory path
-     */
-    private @NotNull Path dataDir() {
-        return Path.of(System.getProperty("user.home"), ".lumen-lsp");
-    }
-
-    /**
-     * Recursively collects documentation files up to a maximum depth of three levels.
-     *
-     * @param dir   the current directory
-     * @param found the accumulator list
-     * @param depth the current recursion depth
-     */
-    private void collectDocFiles(@NotNull File dir, @NotNull List<File> found, int depth) {
-        if (depth > 2) return;
-        File[] children = dir.listFiles();
-        if (children == null) return;
-        for (File child : children) {
-            if (child.isFile() && child.getName().endsWith("-documentation.ldoc")) {
-                found.add(child);
-            } else if (child.isDirectory()) {
-                collectDocFiles(child, found, depth + 1);
-            }
+            client.logMessage(new MessageParams(MessageType.Info, "Lumen LSP ready"));
         }
     }
 
@@ -267,53 +85,53 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     }
 
     @Override
-    public TextDocumentService getTextDocumentService() {
+    public @NotNull TextDocumentService getTextDocumentService() {
         return textDocumentService;
     }
 
     @Override
-    public WorkspaceService getWorkspaceService() {
+    public @NotNull WorkspaceService getWorkspaceService() {
         return workspaceService;
     }
 
     @Override
-    public void connect(LanguageClient client) {
+    public void connect(@NotNull LanguageClient client) {
         this.client = client;
     }
 
     /**
-     * Returns the connected language client, or null if not yet connected.
+     * Returns the connected client, or {@code null} before connect was called.
      *
-     * @return the language client, or null
+     * @return the client
      */
     public @Nullable LanguageClient client() {
         return client;
     }
 
     /**
-     * Returns the loaded pattern registry, or null if documentation has not been loaded.
+     * Returns the analyser, or {@code null} before initialize was called.
      *
-     * @return the pattern registry, or null
+     * @return the analyser
      */
-    public @Nullable PatternRegistry registry() {
-        return registry;
+    public @Nullable DocumentAnalyzer analyzer() {
+        return analyzer;
     }
 
     /**
-     * Returns the loaded documentation data, or null if not yet loaded.
+     * Returns the document store.
      *
-     * @return the documentation data, or null
+     * @return the store
      */
-    public @Nullable DocumentationData documentation() {
-        return documentation;
+    public @NotNull DocumentStore store() {
+        return store;
     }
 
     /**
-     * Returns whether error diagnostics are disabled for this server instance.
+     * Returns the bootstrap, or {@code null} before initialize was called.
      *
-     * @return true if errors are suppressed
+     * @return the bootstrap
      */
-    public boolean errorsDisabled() {
-        return errorsDisabled;
+    public @Nullable LumenBootstrap bootstrap() {
+        return bootstrap;
     }
 }
