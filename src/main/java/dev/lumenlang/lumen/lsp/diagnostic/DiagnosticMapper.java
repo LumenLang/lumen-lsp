@@ -41,7 +41,7 @@ public final class DiagnosticMapper {
         DiagnosticSeverity severity = d.severity() == LumenDiagnostic.Severity.ERROR ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning;
         int line = Math.max(0, d.line() - 1);
         out.add(primary(d, line, indent, severity, suggestion));
-        for (LumenDiagnostic.SubHighlight sh : DiagnosticAccess.subHighlights(d)) {
+        for (LumenDiagnostic.SubHighlight sh : d.subHighlights()) {
             out.add(secondary(line, indent, severity, sh));
         }
         return out;
@@ -60,7 +60,7 @@ public final class DiagnosticMapper {
      */
     private static @NotNull Diagnostic primary(@NotNull LumenDiagnostic d, int line, int indent, @NotNull DiagnosticSeverity severity, @Nullable String suggestion) {
         Diagnostic result = new Diagnostic();
-        result.setRange(rangeAt(line, DiagnosticAccess.columnStart(d) + indent, DiagnosticAccess.columnEnd(d) + indent));
+        result.setRange(rangeAt(line, d.columnStart() + indent, d.columnEnd() + indent));
         result.setSeverity(severity);
         result.setSource("lumen");
         result.setMessage(buildPrimaryMessage(d));
@@ -118,7 +118,7 @@ public final class DiagnosticMapper {
     private static @NotNull String buildPrimaryMessage(@NotNull LumenDiagnostic d) {
         StringBuilder sb = new StringBuilder();
         sb.append(d.title());
-        String label = DiagnosticAccess.underlineLabel(d);
+        String label = d.underlineLabel();
         if (label != null) sb.append(", ").append(label);
         for (String reason : reasons(d)) {
             sb.append('\n').append(reason);
