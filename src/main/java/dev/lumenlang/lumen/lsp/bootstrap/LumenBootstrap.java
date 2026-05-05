@@ -12,11 +12,14 @@ import dev.lumenlang.lumen.pipeline.addon.ScriptBinderManager;
 import dev.lumenlang.lumen.pipeline.binder.ScriptBinder;
 import dev.lumenlang.lumen.pipeline.bus.LumenEventBus;
 import dev.lumenlang.lumen.pipeline.inject.InjectableHandlers;
+import dev.lumenlang.lumen.pipeline.java.compiled.DefaultImportRegistry;
 import dev.lumenlang.lumen.pipeline.language.emit.CodeEmitter;
 import dev.lumenlang.lumen.pipeline.language.emit.EmitRegistry;
 import dev.lumenlang.lumen.pipeline.language.emit.TransformerRegistry;
 import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
 import dev.lumenlang.lumen.pipeline.logger.LumenLogger;
+import dev.lumenlang.lumen.pipeline.persist.GlobalVars;
+import dev.lumenlang.lumen.pipeline.persist.PersistentVars;
 import dev.lumenlang.lumen.pipeline.typebinding.TypeRegistry;
 import dev.lumenlang.lumen.plugin.defaults.type.BuiltinTypeBindings;
 import dev.lumenlang.lumen.plugin.inject.InjectableHandlerFactoryImpl;
@@ -26,8 +29,8 @@ import org.jetbrains.annotations.Nullable;
 import java.util.logging.Logger;
 
 /**
- * Initialises the full Lumen registration system in headless mode for the LSP.
- * Mirrors the plugin onLoad init without scripts, persistence, or a real server.
+ * Headless mirror of {@code Lumen#initApi}. Skips persistent storage, jar based
+ * addon loading, and the script lifecycle.
  */
 public final class LumenBootstrap {
 
@@ -41,10 +44,10 @@ public final class LumenBootstrap {
     private final @NotNull AddonManager addonManager;
     private final @NotNull LumenEventBus eventBus;
 
-    private LumenBootstrap() {
+    private LumenBootstrap(boolean singleThread) {
         HeadlessBukkitServer.install();
         LumenLogger.init(LOGGER);
-        CodeEmitter.setParallelParseThreads(0);
+        if (singleThread) CodeEmitter.setParallelParseThreads(0);
         MinecraftVersion.detect("1.21");
 
         MinecraftTypes.registerAll();
@@ -68,6 +71,20 @@ public final class LumenBootstrap {
 
         this.api = new LumenAPIImpl(patternRegistry, typeRegistry, emitRegistry, transformerRegistry, binderManager);
 
+        DefaultImportRegistry.register("org.bukkit.event.Listener");
+        DefaultImportRegistry.register("org.bukkit.command.CommandSender");
+        DefaultImportRegistry.register("org.bukkit.entity.Player");
+        DefaultImportRegistry.register("org.bukkit.plugin.Plugin");
+        DefaultImportRegistry.register("org.bukkit.Bukkit");
+        DefaultImportRegistry.register(PersistentVars.class.getName());
+        DefaultImportRegistry.register(GlobalVars.class.getName());
+        DefaultImportRegistry.register("dev.lumenlang.lumen.plugin.text.LumenText");
+        DefaultImportRegistry.register("dev.lumenlang.lumen.plugin.annotations.LumenEvent");
+        DefaultImportRegistry.register("dev.lumenlang.lumen.plugin.annotations.LumenCmd");
+        DefaultImportRegistry.register("dev.lumenlang.lumen.plugin.annotations.LumenInventory");
+        DefaultImportRegistry.register("dev.lumenlang.lumen.api.annotations.LumenPreload");
+        DefaultImportRegistry.register("dev.lumenlang.lumen.api.annotations.LumenLoad");
+
         this.addonManager = new AddonManager();
         LumenProvider.init(api, addonManager::registerAddon);
         this.eventBus = new LumenEventBus();
@@ -81,13 +98,14 @@ public final class LumenBootstrap {
     /**
      * Returns the singleton bootstrap, building it on first call.
      *
+     * @param singleThread whether to disable parallel block emission
      * @return the active bootstrap
      */
-    public static @NotNull LumenBootstrap get() {
+    public static @NotNull LumenBootstrap get(boolean singleThread) {
         LumenBootstrap b = instance;
         if (b != null) return b;
         synchronized (LumenBootstrap.class) {
-            if (instance == null) instance = new LumenBootstrap();
+            if (instance == null) instance = new LumenBootstrap(singleThread);
             return instance;
         }
     }

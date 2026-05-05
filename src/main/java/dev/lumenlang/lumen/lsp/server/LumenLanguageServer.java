@@ -49,12 +49,12 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     public LumenLanguageServer(boolean singleThread) {
         this.singleThread = singleThread;
         this.textDocumentService = new LumenTextDocumentService(this);
-        this.workspaceService = new LumenWorkspaceService(this);
+        this.workspaceService = new LumenWorkspaceService();
     }
 
     @Override
     public CompletableFuture<InitializeResult> initialize(@NotNull InitializeParams params) {
-        bootstrap = LumenBootstrap.get();
+        bootstrap = LumenBootstrap.get(singleThread);
         analyzer = new DocumentAnalyzer(bootstrap, singleThread);
         ServerCapabilities capabilities = new ServerCapabilities();
         capabilities.setTextDocumentSync(TextDocumentSyncKind.Incremental);

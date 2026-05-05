@@ -6,13 +6,14 @@ import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
 import dev.lumenlang.lumen.lsp.analysis.MetaKeys;
 import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
 import dev.lumenlang.lumen.lsp.providers.util.TokenAt;
-import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
+import dev.lumenlang.lumen.api.codegen.TypeEnv;
+import dev.lumenlang.lumen.pipeline.codegen.TypeEnvImpl;
 import dev.lumenlang.lumen.pipeline.language.match.BoundValue;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredExpressionMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Token;
-import dev.lumenlang.lumen.pipeline.var.VarRef;
+import dev.lumenlang.lumen.api.codegen.TypeEnv.VarHandle;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.MarkupKind;
@@ -60,7 +61,7 @@ public final class HoverProvider {
         RegisteredBlockMatch bm = line.meta(MetaKeys.BLOCK_MATCH, RegisteredBlockMatch.class);
         BoundValue bound = sm != null ? findBinding(sm.match().values(), token) : (bm != null ? findBinding(bm.match().values(), token) : null);
         if (bound != null && "IDENT".equals(bound.binding().id())) {
-            VarRef ref = lookupVar(line, token.text());
+            VarHandle ref = lookupVar(line, token.text());
             if (ref != null) return variableHover(ref);
         }
         if (sm != null) return patternHover(sm.reg().pattern().raw(), sm.reg().meta());
@@ -113,7 +114,7 @@ public final class HoverProvider {
      */
     private static @NotNull Hover varDeclHover(@NotNull LineAnalysis line, @NotNull String varName) {
         TypeEnv after = line.afterEnv();
-        VarRef ref = after != null ? after.lookupVar(varName) : null;
+        VarHandle ref = after != null ? after.lookupVar(varName) : null;
         StringBuilder sb = new StringBuilder();
         sb.append("```lumen\n");
         sb.append(varName);
@@ -136,13 +137,13 @@ public final class HoverProvider {
     private static @NotNull Hover valueHover(@NotNull LumenBootstrap bootstrap, @NotNull LineAnalysis line, @Nullable String varName, @Nullable BoundValue val) {
         TypeEnv after = line.afterEnv();
         if (val != null && after != null && val.tokens().size() > 1) {
-            RegisteredExpressionMatch em = bootstrap.patterns().matchExpression(val.tokens(), after);
+            RegisteredExpressionMatch em = bootstrap.patterns().matchExpression(val.tokens(), (TypeEnvImpl) after);
             if (em != null) return patternHover(em.reg().pattern().raw(), em.reg().meta());
         }
         StringBuilder sb = new StringBuilder();
         sb.append("```lumen\n");
         sb.append(joinTokens(val));
-        VarRef ref = after != null && varName != null ? after.lookupVar(varName) : null;
+        VarHandle ref = after != null && varName != null ? after.lookupVar(varName) : null;
         if (ref != null) sb.append("\n: ").append(ref.type().displayName());
         sb.append("\n```\n\nAssigned value");
         return markdown(sb.toString());
@@ -172,12 +173,8 @@ public final class HoverProvider {
      * @param ref the resolved variable
      * @return the hover
      */
-    private static @NotNull Hover variableHover(@NotNull VarRef ref) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("```lumen\n");
-        sb.append(ref.name()).append(": ").append(ref.type().displayName());
-        sb.append("\n```");
-        return markdown(sb.toString());
+    private static @NotNull Hover variableHover(@NotNull VarHandle ref) {
+        return markdown("```lumen\n" + ref.name() + ": " + ref.type().displayName() + "\n```");
     }
 
     /**
@@ -216,7 +213,7 @@ public final class HoverProvider {
      * @param name the identifier text
      * @return the matching var ref, or {@code null}
      */
-    private static @Nullable VarRef lookupVar(@NotNull LineAnalysis line, @NotNull String name) {
+    private static @Nullable VarHandle lookupVar(@NotNull LineAnalysis line, @NotNull String name) {
         TypeEnv env = line.afterEnv();
         if (env == null) return null;
         return env.lookupVar(name);

@@ -3,14 +3,15 @@ package dev.lumenlang.lumen.lsp.providers.completion;
 import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
 import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
 import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
-import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
+import dev.lumenlang.lumen.api.codegen.TypeEnv;
+import dev.lumenlang.lumen.pipeline.codegen.TypeEnvImpl;
 import dev.lumenlang.lumen.pipeline.language.pattern.Pattern;
 import dev.lumenlang.lumen.pipeline.language.pattern.PatternPart;
 import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlock;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredExpression;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPattern;
-import dev.lumenlang.lumen.pipeline.var.VarRef;
+import dev.lumenlang.lumen.api.codegen.TypeEnv.VarHandle;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.Position;
@@ -65,10 +66,10 @@ public final class CompletionProvider {
                 addPattern(out, re.pattern(), CompletionItemKind.Value, "expression");
             }
         }
-        if (env != null) {
-            for (String name : env.allVisibleVarNames()) {
+        if (env instanceof TypeEnvImpl impl) {
+            for (String name : impl.allVisibleVarNames()) {
                 if (partial.isEmpty() || name.toLowerCase().startsWith(partial.toLowerCase())) {
-                    addVariable(out, name, env.lookupVar(name));
+                    addVariable(out, name, impl.lookupVar(name));
                 }
             }
         }
@@ -237,7 +238,7 @@ public final class CompletionProvider {
      * @param name the variable source name
      * @param ref  the resolved var ref, or {@code null} when only the name is known
      */
-    private static void addVariable(@NotNull List<CompletionItem> out, @NotNull String name, @Nullable VarRef ref) {
+    private static void addVariable(@NotNull List<CompletionItem> out, @NotNull String name, @Nullable VarHandle ref) {
         CompletionItem item = new CompletionItem(name);
         item.setKind(CompletionItemKind.Variable);
         if (ref != null) item.setDetail(ref.type().displayName());

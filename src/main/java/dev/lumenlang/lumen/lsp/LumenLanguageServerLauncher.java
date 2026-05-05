@@ -8,6 +8,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
@@ -31,10 +32,7 @@ public final class LumenLanguageServerLauncher {
      * @throws Exception if launching or listening fails
      */
     public static void main(@NotNull String[] args) throws Exception {
-        boolean wasm = false;
-        for (String arg : args) {
-            if ("--wasm".equals(arg)) wasm = true;
-        }
+        boolean wasm = Arrays.asList(args).contains("--wasm");
 
         InputStream in;
         OutputStream out;
@@ -64,7 +62,7 @@ public final class LumenLanguageServerLauncher {
                 .setInput(in)
                 .setOutput(out)
                 .setExecutorService(new DirectExecutorService())
-                .wrapMessages((Function) Function.identity());
+                .wrapMessages(Function.identity());
         return b.create();
     }
 

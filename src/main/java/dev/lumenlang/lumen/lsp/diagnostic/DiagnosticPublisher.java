@@ -4,7 +4,7 @@ import dev.lumenlang.lumen.api.diagnostic.LumenDiagnostic;
 import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
 import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
 import dev.lumenlang.lumen.lsp.analysis.MetaKeys;
-import dev.lumenlang.lumen.pipeline.language.resolve.PatternSimulator;
+import dev.lumenlang.lumen.pipeline.language.simulator.PatternSimulator;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.services.LanguageClient;

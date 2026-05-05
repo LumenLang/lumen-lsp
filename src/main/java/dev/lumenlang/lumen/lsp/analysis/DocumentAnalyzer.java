@@ -5,14 +5,14 @@ import dev.lumenlang.lumen.api.diagnostic.LumenDiagnostic;
 import dev.lumenlang.lumen.api.emit.BlockEnterHook;
 import dev.lumenlang.lumen.api.emit.BlockFormHandler;
 import dev.lumenlang.lumen.api.emit.ScriptLine;
-import dev.lumenlang.lumen.lsp.analysis.util.EnvCopier;
-import dev.lumenlang.lumen.lsp.analysis.util.NoopJavaOutput;
 import dev.lumenlang.lumen.lsp.analysis.util.SimpleScriptLine;
 import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
-import dev.lumenlang.lumen.pipeline.codegen.BlockContext;
-import dev.lumenlang.lumen.pipeline.codegen.CodegenContext;
+import dev.lumenlang.lumen.pipeline.codegen.BlockContextImpl;
+import dev.lumenlang.lumen.pipeline.codegen.CodegenContextImpl;
 import dev.lumenlang.lumen.pipeline.codegen.HandlerContextImpl;
-import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
+import dev.lumenlang.lumen.pipeline.codegen.TypeEnvImpl;
+import dev.lumenlang.lumen.pipeline.codegen.source.SourceMapImpl;
+import dev.lumenlang.lumen.pipeline.codegen.output.NoOpJavaOutput;
 import dev.lumenlang.lumen.pipeline.language.nodes.BlockNode;
 import dev.lumenlang.lumen.pipeline.language.nodes.Node;
 import dev.lumenlang.lumen.pipeline.language.nodes.RawBlockNode;
@@ -20,8 +20,8 @@ import dev.lumenlang.lumen.pipeline.language.nodes.StatementNode;
 import dev.lumenlang.lumen.pipeline.language.parse.LumenParser;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
-import dev.lumenlang.lumen.pipeline.language.resolve.PatternSimulator;
-import dev.lumenlang.lumen.pipeline.language.resolve.SuggestionDiagnostics;
+import dev.lumenlang.lumen.pipeline.language.simulator.PatternSimulator;
+import dev.lumenlang.lumen.pipeline.language.simulator.suggestions.SuggestionDiagnostics;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Line;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Token;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Tokenizer;
@@ -67,17 +67,6 @@ public final class DocumentAnalyzer {
     }
 
     /**
-     * Tokenises, parses, and analyses the given source from scratch.
-     *
-     * @param uri    the document URI
-     * @param source the document text
-     * @return the analysis result
-     */
-    public @NotNull AnalysisResult analyze(@NotNull String uri, @NotNull String source) {
-        return analyzeIncremental(uri, source, null, null);
-    }
-
-    /**
      * Analyses the given source, reusing the cached prior result for any line
      * untouched by the edit. When {@code editLine} is non null, only the
      * innermost enclosing block of that line and its remaining tail are
@@ -97,23 +86,16 @@ public final class DocumentAnalyzer {
         List<Line> lines = new Tokenizer().tokenize(source);
         BlockNode root = new LumenParser().parse(lines);
         Map<Integer, Integer> indentByLine = indentMap(source);
-        CodegenContext ctx = new CodegenContext(uriToScriptName(uri));
+        CodegenContextImpl ctx = new CodegenContextImpl(uriToScriptName(uri));
         ctx.setRawJavaEnabled(true);
 
-        IncrementalScope scope = editLine == null || prior == null ? null : computeScope(root, prior, editLine);
+        IncrementalScope scope = editLine == null || prior == null ? null : computeScope(root, editLine);
         if (scope != null) {
             AnalysisResult result = tryIncremental(uri, source, root, indentByLine, ctx, prior, scope);
             if (result != null) return result;
         }
 
         return fullAnalyze(uri, source, root, indentByLine, ctx);
-    }
-
-    /**
-     * Closes the worker pool. Should be called when the server shuts down.
-     */
-    public void shutdown() {
-        if (pool != null) pool.shutdownNow();
     }
 
     /**
@@ -128,8 +110,9 @@ public final class DocumentAnalyzer {
      * @param ctx          the codegen context shared across all blocks
      * @return the merged analysis result
      */
-    private @NotNull AnalysisResult fullAnalyze(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContext ctx) {
-        TypeEnv env = new TypeEnv();
+    private @NotNull AnalysisResult fullAnalyze(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContextImpl ctx) {
+        TypeEnvImpl env = new TypeEnvImpl();
+        env.setSourceMap(new SourceMapImpl(source));
         List<LumenDiagnostic> diagnostics = new ArrayList<>();
         List<LineAnalysis> analyses = new ArrayList<>();
 
@@ -172,11 +155,11 @@ public final class DocumentAnalyzer {
      * @param diagnostics  the diagnostic accumulator
      * @param analyses     the analysis accumulator
      */
-    private void mergeParallel(@NotNull List<Node> independent, @NotNull List<Node> siblings, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull Map<Integer, Integer> indentByLine, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
+    private void mergeParallel(@NotNull List<Node> independent, @NotNull List<Node> siblings, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull Map<Integer, Integer> indentByLine, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
         List<Future<BlockResult>> futures = new ArrayList<>(independent.size());
         for (Node child : independent) {
             int siblingIndex = siblings.indexOf(child);
-            TypeEnv forked = env.fork();
+            TypeEnvImpl forked = env.fork();
             futures.add(pool.submit(() -> {
                 List<LumenDiagnostic> diags = new ArrayList<>();
                 List<LineAnalysis> lines = new ArrayList<>();
@@ -204,15 +187,13 @@ public final class DocumentAnalyzer {
      * a known block boundary.
      *
      * @param root     the freshly parsed document root
-     * @param prior    the previous analysis whose cache is reused
      * @param editLine the 1-based source line that changed
      * @return the computed scope, or {@code null} when a full parse is required
      */
-    private @Nullable IncrementalScope computeScope(@NotNull BlockNode root, @NotNull AnalysisResult prior, int editLine) {
+    private @Nullable IncrementalScope computeScope(@NotNull BlockNode root, int editLine) {
         BlockNode topLevel = findTopLevelEnclosing(root, editLine);
         if (topLevel == null) return null;
         BlockNode innermost = findInnermost(topLevel, editLine);
-        if (innermost == null) innermost = topLevel;
         boolean important = isImportant(topLevel);
         int blockEndLine = lastLineOf(innermost);
         return new IncrementalScope(topLevel, innermost, editLine, blockEndLine, important);
@@ -233,11 +214,12 @@ public final class DocumentAnalyzer {
      * @param scope        the computed scope
      * @return the merged analysis result, or {@code null} when the cache was unusable
      */
-    private @Nullable AnalysisResult tryIncremental(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContext ctx, @NotNull AnalysisResult prior, @NotNull IncrementalScope scope) {
+    private @Nullable AnalysisResult tryIncremental(@NotNull String uri, @NotNull String source, @NotNull BlockNode root, @NotNull Map<Integer, Integer> indentByLine, @NotNull CodegenContextImpl ctx, @NotNull AnalysisResult prior, @NotNull IncrementalScope scope) {
         LineAnalysis topHeader = lineByNumber(prior, scope.topLevel.line());
         if (topHeader == null) return null;
         if (lineCountOf(source) != lineCountOf(prior.source())) return null;
-        TypeEnv env = EnvCopier.copy(topHeader.beforeEnv());
+        TypeEnvImpl env = ((TypeEnvImpl) topHeader.beforeEnv()).deepClone();
+        env.setSourceMap(new SourceMapImpl(source));
         List<LumenDiagnostic> diagnostics = new ArrayList<>();
         List<LineAnalysis> analyses = new ArrayList<>();
 
@@ -338,90 +320,6 @@ public final class DocumentAnalyzer {
     }
 
     /**
-     * Re runs every top level independent child of the document root in
-     * parallel, used after an important block was edited.
-     *
-     * @param root         the freshly parsed document root
-     * @param env          the env to fork from after the important blocks ran
-     * @param ctx          the codegen context
-     * @param indentByLine the per line indent map
-     * @param diagnostics  the diagnostic accumulator
-     * @param analyses     the analysis accumulator
-     */
-    private void rerunIndependentTopLevels(@NotNull BlockNode root, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull Map<Integer, Integer> indentByLine, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses) {
-        List<Node> children = root.children();
-        List<Node> independent = new ArrayList<>();
-        for (Node child : children) {
-            if (child instanceof RawBlockNode) continue;
-            if (!isImportant(child)) independent.add(child);
-        }
-        if (singleThread || independent.size() <= 1) {
-            for (Node child : independent) {
-                walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
-            }
-            return;
-        }
-        mergeParallel(independent, children, env, ctx, indentByLine, diagnostics, analyses);
-    }
-
-    /**
-     * Walks the children of the innermost block from the edit line forward,
-     * leaving everything before the edit line in the cache untouched.
-     *
-     * @param innermost    the innermost enclosing block
-     * @param editLine     the 1-based source line that changed
-     * @param block        the block context for the innermost block
-     * @param env          the live env to mutate
-     * @param ctx          the codegen context
-     * @param diagnostics  the diagnostic accumulator
-     * @param analyses     the analysis accumulator
-     * @param indentByLine the per line indent map
-     */
-    private void replayBlockTail(@NotNull BlockNode innermost, int editLine, @NotNull BlockContext block, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
-        if (innermost.line() >= editLine) {
-            walkOne(innermost, null, List.of(innermost), 0, env, ctx, diagnostics, analyses, indentByLine);
-            return;
-        }
-        List<Node> children = innermost.children();
-        for (int i = 0; i < children.size(); i++) {
-            Node child = children.get(i);
-            if (child.line() < editLine) continue;
-            walkOne(child, block, children, i, env, ctx, diagnostics, analyses, indentByLine);
-        }
-    }
-
-    /**
-     * Builds a synthetic {@link BlockContext} for the given innermost block,
-     * matching the parent the original analyser would have produced.
-     *
-     * @param innermost the innermost block
-     * @param topLevel  the top level enclosing block, returned as the context root when the innermost is itself top level
-     * @return the block context
-     */
-    private @NotNull BlockContext blockContextFor(@NotNull BlockNode innermost, @NotNull BlockNode topLevel) {
-        return new BlockContext(innermost, null, List.of(innermost), 0);
-    }
-
-    /**
-     * Returns the cached line analysis sitting immediately at or before the
-     * edit line within the innermost block, used as the env resume point.
-     *
-     * @param prior the previous analysis
-     * @param scope the computed scope
-     * @return the resume line, or {@code null} when none was cached
-     */
-    private @Nullable LineAnalysis findResumePoint(@NotNull AnalysisResult prior, @NotNull IncrementalScope scope) {
-        LineAnalysis match = null;
-        for (LineAnalysis line : prior.lines()) {
-            if (line.lineNumber() < scope.editLine) match = line;
-            else if (line.lineNumber() == scope.editLine) return line;
-            else break;
-        }
-        if (match != null) return match;
-        return prior.lines().isEmpty() ? null : prior.lines().get(0);
-    }
-
-    /**
      * Returns the top level child of the document root whose line range
      * contains the given line, or {@code null} when the line falls outside
      * every top level child.
@@ -447,14 +345,13 @@ public final class DocumentAnalyzer {
      * @param line the 1-based source line
      * @return the innermost enclosing block
      */
-    private @Nullable BlockNode findInnermost(@NotNull BlockNode root, int line) {
+    private @NotNull BlockNode findInnermost(@NotNull BlockNode root, int line) {
         BlockNode best = root;
         for (Node child : root.children()) {
             if (!(child instanceof BlockNode block)) continue;
             int last = lastLineOf(block);
             if (block.line() <= line && line <= last) {
-                BlockNode deeper = findInnermost(block, line);
-                if (deeper != null) best = deeper;
+                best = findInnermost(block, line);
             }
         }
         return best;
@@ -509,7 +406,7 @@ public final class DocumentAnalyzer {
      * @param analyses     the analysis accumulator
      * @param indentByLine the per line indent map
      */
-    private void walkOne(@NotNull Node child, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+    private void walkOne(@NotNull Node child, @Nullable BlockContextImpl parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
         if (child instanceof RawBlockNode) return;
         if (child instanceof BlockNode block) {
             analyzeBlock(block, parentBlock, siblings, index, env, ctx, diagnostics, analyses, indentByLine);
@@ -518,27 +415,27 @@ public final class DocumentAnalyzer {
         }
     }
 
-    private void walk(@NotNull List<Node> children, @Nullable BlockContext parentBlock, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+    private void walk(@NotNull List<Node> children, @Nullable BlockContextImpl parentBlock, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
         for (int i = 0; i < children.size(); i++) {
             walkOne(children.get(i), parentBlock, children, i, env, ctx, diagnostics, analyses, indentByLine);
         }
     }
 
-    private void analyzeStatement(@NotNull StatementNode stmt, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+    private void analyzeStatement(@NotNull StatementNode stmt, @Nullable BlockContextImpl parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
         List<Token> tokens = stmt.head();
         if (tokens.isEmpty()) return;
         int indent = indentByLine.getOrDefault(stmt.line(), 0);
-        TypeEnv before = EnvCopier.copy(env);
-        BlockContext block = parentBlock != null ? parentBlock : new BlockContext(stmt, null, siblings, index);
+        TypeEnvImpl before = env.deepClone();
+        BlockContextImpl block = parentBlock != null ? parentBlock : new BlockContextImpl(stmt, null, siblings, index);
         try {
             RegisteredPatternMatch match = bootstrap.patterns().matchStatement(tokens, env);
             if (match != null) {
-                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoopJavaOutput.INSTANCE, stmt.line(), stmt.raw());
+                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoOpJavaOutput.INSTANCE);
                 match.reg().handler().handle(hctx);
                 Map<String, Object> meta = new HashMap<>();
                 meta.put(MetaKeys.STATEMENT_MATCH, match);
                 stashVarDecl(meta, match);
-                analyses.add(new LineAnalysis(stmt.line(), indent, tokens, null, before, EnvCopier.copy(env), meta));
+                analyses.add(new LineAnalysis(stmt.line(), indent, tokens, null, before, env.deepClone(), meta));
                 return;
             }
             List<PatternSimulator.Suggestion> suggestions = PatternSimulator.suggestStatementsAndExpressions(tokens, bootstrap.patterns(), env);
@@ -548,11 +445,11 @@ public final class DocumentAnalyzer {
             if (!suggestions.isEmpty()) meta.put(MetaKeys.SUGGESTIONS, suggestions);
             analyses.add(new LineAnalysis(stmt.line(), indent, tokens, diag, before, null, meta));
         } catch (DiagnosticException e) {
-            EnvCopier.restore(env, before);
+            env.restoreFrom(before);
             diagnostics.add(e.diagnostic());
             analyses.add(new LineAnalysis(stmt.line(), indent, tokens, e.diagnostic(), before, null, new HashMap<>()));
         } catch (RuntimeException e) {
-            EnvCopier.restore(env, before);
+            env.restoreFrom(before);
             LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
                     .at(stmt.line(), stmt.raw())
                     .build();
@@ -561,11 +458,11 @@ public final class DocumentAnalyzer {
         }
     }
 
-    private void analyzeBlock(@NotNull BlockNode node, @Nullable BlockContext parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+    private void analyzeBlock(@NotNull BlockNode node, @Nullable BlockContextImpl parentBlock, @NotNull List<Node> siblings, int index, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
         List<Token> head = node.head();
         int indent = indentByLine.getOrDefault(node.line(), 0);
-        TypeEnv before = EnvCopier.copy(env);
-        BlockContext block = new BlockContext(node, parentBlock, siblings, index);
+        TypeEnvImpl before = env.deepClone();
+        BlockContextImpl block = new BlockContextImpl(node, parentBlock, siblings, index);
         BlockFormHandler form = matchBlockForm(head);
         if (form != null) {
             handleBlockForm(form, node, head, indent, env, ctx, diagnostics, analyses, before, indentByLine);
@@ -575,18 +472,17 @@ public final class DocumentAnalyzer {
         try {
             RegisteredBlockMatch match = head.isEmpty() ? null : bootstrap.patterns().matchBlock(head, env);
             if (match != null) {
-                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+                HandlerContextImpl hctx = new HandlerContextImpl(match.match(), env, ctx, block, NoOpJavaOutput.INSTANCE);
                 env.enterBlock(block);
                 entered = true;
                 match.reg().handler().begin(hctx);
-                runBlockEnterHooks(env, ctx, block, node);
+                runBlockEnterHooks(env, ctx, block);
                 Map<String, Object> meta = new HashMap<>();
                 meta.put(MetaKeys.BLOCK_MATCH, match);
-                analyses.add(new LineAnalysis(node.line(), indent, head, null, before, EnvCopier.copy(env), meta));
+                analyses.add(new LineAnalysis(node.line(), indent, head, null, before, env.deepClone(), meta));
                 walk(node.children(), block, env, ctx, diagnostics, analyses, indentByLine);
                 match.reg().handler().end(hctx);
                 env.leaveBlock();
-                entered = false;
                 return;
             }
             List<PatternSimulator.Suggestion> suggestions = PatternSimulator.suggestBlocks(head, bootstrap.patterns(), env);
@@ -598,12 +494,12 @@ public final class DocumentAnalyzer {
             walk(node.children(), block, env, ctx, diagnostics, analyses, indentByLine);
         } catch (DiagnosticException e) {
             if (entered) env.leaveBlock();
-            EnvCopier.restore(env, before);
+            env.restoreFrom(before);
             diagnostics.add(e.diagnostic());
             analyses.add(new LineAnalysis(node.line(), indent, head, e.diagnostic(), before, null, new HashMap<>()));
         } catch (RuntimeException e) {
             if (entered) env.leaveBlock();
-            EnvCopier.restore(env, before);
+            env.restoreFrom(before);
             LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
                     .at(node.line(), node.raw())
                     .build();
@@ -644,25 +540,26 @@ public final class DocumentAnalyzer {
      * @param snapshot     the env snapshot used to roll back on failure
      * @param indentByLine the per line indent map for child rows
      */
-    private void handleBlockForm(@NotNull BlockFormHandler form, @NotNull BlockNode node, @NotNull List<Token> head, int indent, @NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull TypeEnv snapshot, @NotNull Map<Integer, Integer> indentByLine) {
+    private void handleBlockForm(@NotNull BlockFormHandler form, @NotNull BlockNode node, @NotNull List<Token> head, int indent, @NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull List<LumenDiagnostic> diagnostics, @NotNull List<LineAnalysis> analyses, @NotNull TypeEnvImpl snapshot, @NotNull Map<Integer, Integer> indentByLine) {
         List<ScriptLine> children = new ArrayList<>(node.children().size());
         for (Node child : node.children()) {
             children.add(new SimpleScriptLine(child));
         }
-        HandlerContextImpl hctx = new HandlerContextImpl(null, env, ctx, null, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+        BlockContextImpl block = new BlockContextImpl(node, null, List.of(node), 0);
+        HandlerContextImpl hctx = new HandlerContextImpl(null, env, ctx, block, NoOpJavaOutput.INSTANCE);
         try {
             form.handle(head, children, hctx);
             Map<String, Object> meta = new HashMap<>();
             meta.put(MetaKeys.BLOCK_FORM_NAME, head.get(0).text());
-            analyses.add(new LineAnalysis(node.line(), indent, head, null, snapshot, EnvCopier.copy(env), meta));
+            analyses.add(new LineAnalysis(node.line(), indent, head, null, snapshot, env.deepClone(), meta));
             recordChildren(node, env, snapshot, analyses, indentByLine);
         } catch (DiagnosticException e) {
-            EnvCopier.restore(env, snapshot);
+            env.restoreFrom(snapshot);
             diagnostics.add(e.diagnostic());
             analyses.add(new LineAnalysis(node.line(), indent, head, e.diagnostic(), snapshot, null, new HashMap<>()));
             recordChildren(node, env, snapshot, analyses, indentByLine);
         } catch (RuntimeException e) {
-            EnvCopier.restore(env, snapshot);
+            env.restoreFrom(snapshot);
             LumenDiagnostic diag = LumenDiagnostic.error(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName())
                     .at(node.line(), node.raw())
                     .build();
@@ -683,13 +580,13 @@ public final class DocumentAnalyzer {
      * @param analyses     the analysis accumulator
      * @param indentByLine the per line indent map for column shifting
      */
-    private void recordChildren(@NotNull BlockNode node, @NotNull TypeEnv env, @NotNull TypeEnv before, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
+    private void recordChildren(@NotNull BlockNode node, @NotNull TypeEnvImpl env, @NotNull TypeEnvImpl before, @NotNull List<LineAnalysis> analyses, @NotNull Map<Integer, Integer> indentByLine) {
         for (Node child : node.children()) {
             if (!(child instanceof StatementNode stmt)) continue;
             List<Token> tokens = stmt.head();
             if (tokens.isEmpty()) continue;
             int childIndent = indentByLine.getOrDefault(stmt.line(), 0);
-            analyses.add(new LineAnalysis(stmt.line(), childIndent, tokens, null, before, EnvCopier.copy(env), new HashMap<>()));
+            analyses.add(new LineAnalysis(stmt.line(), childIndent, tokens, null, before, env.deepClone(), new HashMap<>()));
         }
     }
 
@@ -702,10 +599,9 @@ public final class DocumentAnalyzer {
      * @param env   the live env
      * @param ctx   the codegen context
      * @param block the block being entered
-     * @param node  the block node providing source location
      */
-    private void runBlockEnterHooks(@NotNull TypeEnv env, @NotNull CodegenContext ctx, @NotNull BlockContext block, @NotNull BlockNode node) {
-        HandlerContextImpl hookCtx = new HandlerContextImpl(null, env, ctx, block, NoopJavaOutput.INSTANCE, node.line(), node.raw());
+    private void runBlockEnterHooks(@NotNull TypeEnvImpl env, @NotNull CodegenContextImpl ctx, @NotNull BlockContextImpl block) {
+        HandlerContextImpl hookCtx = new HandlerContextImpl(null, env, ctx, block, NoOpJavaOutput.INSTANCE);
         for (BlockEnterHook hook : bootstrap.emit().blockEnterHooks()) {
             try {
                 hook.onBlockEnter(hookCtx);
@@ -714,7 +610,7 @@ public final class DocumentAnalyzer {
         }
     }
 
-    private @NotNull LumenDiagnostic buildUnknownDiagnostic(@NotNull String title, int line, @NotNull String raw, @NotNull List<Token> tokens, @NotNull List<PatternSimulator.Suggestion> suggestions, @NotNull TypeEnv env) {
+    private @NotNull LumenDiagnostic buildUnknownDiagnostic(@NotNull String title, int line, @NotNull String raw, @NotNull List<Token> tokens, @NotNull List<PatternSimulator.Suggestion> suggestions, @NotNull TypeEnvImpl env) {
         if (suggestions.isEmpty()) {
             return LumenDiagnostic.error(title)
                     .at(line, raw)
@@ -761,7 +657,7 @@ public final class DocumentAnalyzer {
     }
 
     /**
-     * Derives the script name passed to {@link CodegenContext} from the
+     * Derives the script name passed to {@link CodegenContextImpl} from the
      * document URI, ensuring it ends with the {@code .luma} suffix.
      *
      * @param uri the document URI

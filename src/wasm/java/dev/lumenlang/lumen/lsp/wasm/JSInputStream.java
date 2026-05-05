@@ -36,7 +36,7 @@ public final class JSInputStream extends InputStream {
      * @return number of bytes read, or {@code -1} on immediate end of stream
      */
     @Override
-    public int read(@NotNull byte[] b, int off, int len) {
+    public int read(byte @NotNull [] b, int off, int len) {
         if (len == 0) return 0;
         int first = read();
         if (first == -1) return -1;

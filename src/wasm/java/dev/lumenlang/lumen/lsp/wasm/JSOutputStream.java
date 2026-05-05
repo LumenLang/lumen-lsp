@@ -39,7 +39,7 @@ public final class JSOutputStream extends OutputStream {
      * @param len number of bytes to write
      */
     @Override
-    public void write(@NotNull byte[] b, int off, int len) {
+    public void write(byte @NotNull [] b, int off, int len) {
         int written = 0;
         while (written < len) {
             int free = buffer.length - size;

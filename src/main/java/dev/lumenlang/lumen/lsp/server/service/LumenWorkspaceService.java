@@ -1,6 +1,5 @@
 package dev.lumenlang.lumen.lsp.server.service;
 
-import dev.lumenlang.lumen.lsp.server.LumenLanguageServer;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.services.WorkspaceService;
@@ -11,13 +10,10 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class LumenWorkspaceService implements WorkspaceService {
 
-    private final @NotNull LumenLanguageServer server;
-
     /**
-     * @param server the parent server
+     * Default constructor.
      */
-    public LumenWorkspaceService(@NotNull LumenLanguageServer server) {
-        this.server = server;
+    public LumenWorkspaceService() {
     }
 
     @Override

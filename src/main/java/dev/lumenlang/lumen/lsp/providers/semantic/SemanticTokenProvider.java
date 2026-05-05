@@ -3,12 +3,12 @@ package dev.lumenlang.lumen.lsp.providers.semantic;
 import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
 import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
 import dev.lumenlang.lumen.lsp.analysis.MetaKeys;
-import dev.lumenlang.lumen.pipeline.codegen.TypeEnv;
+import dev.lumenlang.lumen.api.codegen.TypeEnv;
 import dev.lumenlang.lumen.pipeline.language.match.BoundValue;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
 import dev.lumenlang.lumen.pipeline.language.tokenization.Token;
-import dev.lumenlang.lumen.pipeline.var.VarRef;
+import dev.lumenlang.lumen.api.codegen.TypeEnv.VarHandle;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -171,7 +171,7 @@ public final class SemanticTokenProvider {
      */
     private static int identType(@NotNull Token token, @Nullable BoundValue bv, @Nullable TypeEnv env) {
         if (bv == null) return SemanticLegend.TYPE_KEYWORD;
-        VarRef ref = env != null ? env.lookupVar(token.text()) : null;
+        VarHandle ref = env != null ? env.lookupVar(token.text()) : null;
         if (ref != null) return SemanticLegend.TYPE_VARIABLE;
         String id = bv.binding().id();
         return switch (id) {

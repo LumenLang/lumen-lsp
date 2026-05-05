@@ -2,57 +2,71 @@ package dev.lumenlang.lumen.lsp.bootstrap;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Server;
-import org.bukkit.UnsafeValues;
+import org.bukkit.plugin.PluginManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Proxy;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import java.util.logging.Logger;
 
 /**
- * Installs a stub Bukkit Server implementation so that the Lumen pipeline can
- * complete its registration phase without an actual Minecraft server running.
+ * Installs a stub Bukkit Server implementation so the Lumen pipeline can complete
+ * its registration phase without an actual Minecraft server running.
  */
 public final class HeadlessBukkitServer {
 
-    private static final @NotNull Logger LOGGER = Logger.getLogger("LumenLSP-HeadlessBukkit");
+    private static final @NotNull Logger LOGGER = Logger.getLogger("HeadlessLumen");
 
     private HeadlessBukkitServer() {
     }
 
     /**
-     * Installs the headless server stub. Safe to call once per JVM.
+     * Creates a proxy {@link Server} and installs it via {@link Bukkit#setServer(Server)}.
      */
     public static void install() {
-        if (Bukkit.getServer() != null) return;
+        PluginManager pluginManager = (PluginManager) Proxy.newProxyInstance(
+                PluginManager.class.getClassLoader(),
+                new Class[]{PluginManager.class},
+                (obj, method, args) -> defaultReturn(method.getReturnType()));
+
         Server server = (Server) Proxy.newProxyInstance(
                 Server.class.getClassLoader(),
-                new Class<?>[]{Server.class},
-                (proxy, method, args) -> defaults(method.getReturnType())
-        );
+                new Class[]{Server.class},
+                (obj, method, args) -> switch (method.getName()) {
+                    case "getBukkitVersion" -> "1.20-R0.1-SNAPSHOT";
+                    case "getName" -> "HeadlessLumen";
+                    case "getVersion" -> "HeadlessLumen 1.0";
+                    case "getLogger" -> LOGGER;
+                    case "getPluginManager" -> pluginManager;
+                    case "isPrimaryThread" -> true;
+                    default -> defaultReturn(method.getReturnType());
+                });
+
         Bukkit.setServer(server);
     }
 
     /**
-     * Returns the no-op default value for a given return type.
+     * Returns the conventional no-op value for the given primitive, string, collection,
+     * or reference type, or {@code null} when no useful default exists.
      *
-     * @param type the method return type
-     * @return zero, false, an empty array or {@code null} as appropriate
+     * @param type the proxied method return type
+     * @return the no-op default
      */
-    private static @Nullable Object defaults(@NotNull Class<?> type) {
-        if (type == void.class) return null;
+    private static @Nullable Object defaultReturn(@NotNull Class<?> type) {
         if (type == boolean.class) return false;
-        if (type == byte.class) return (byte) 0;
-        if (type == short.class) return (short) 0;
         if (type == int.class) return 0;
         if (type == long.class) return 0L;
-        if (type == float.class) return 0.0f;
-        if (type == double.class) return 0.0d;
-        if (type == char.class) return '\0';
+        if (type == double.class) return 0.0;
+        if (type == float.class) return 0f;
+        if (type == short.class) return (short) 0;
+        if (type == byte.class) return (byte) 0;
+        if (type == char.class) return (char) 0;
         if (type == String.class) return "";
-        if (type == Logger.class) return LOGGER;
-        if (type.isArray()) return Array.newInstance(type.getComponentType(), 0);
+        if (Collection.class.isAssignableFrom(type)) return Collections.emptyList();
+        if (Map.class.isAssignableFrom(type)) return Collections.emptyMap();
         return null;
     }
 }

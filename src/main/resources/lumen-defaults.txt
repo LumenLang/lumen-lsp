@@ -49,6 +49,8 @@ dev.lumenlang.lumen.plugin.defaults.emit.form.LoadStatementForm
 dev.lumenlang.lumen.plugin.defaults.emit.form.VarDeclarationForm
 dev.lumenlang.lumen.plugin.defaults.emit.hook.GlobalVarLoadHook
 dev.lumenlang.lumen.plugin.defaults.emit.transformer.UnusedVarTransformer
+dev.lumenlang.lumen.plugin.defaults.emit.transformer.global.GlobalVarWritebackTransformer
+dev.lumenlang.lumen.plugin.defaults.emit.transformer.global.UnusedGlobalLoadTransformer
 dev.lumenlang.lumen.plugin.defaults.emit.validator.NullSafetyValidator
 dev.lumenlang.lumen.plugin.defaults.event.DefaultEvents
 dev.lumenlang.lumen.plugin.defaults.expression.AttributeExpressions
