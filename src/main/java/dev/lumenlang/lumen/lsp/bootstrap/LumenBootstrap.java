@@ -12,6 +12,7 @@ import dev.lumenlang.lumen.pipeline.addon.ScriptBinderManager;
 import dev.lumenlang.lumen.pipeline.binder.ScriptBinder;
 import dev.lumenlang.lumen.pipeline.bus.LumenEventBus;
 import dev.lumenlang.lumen.pipeline.inject.InjectableHandlers;
+import dev.lumenlang.lumen.pipeline.language.emit.CodeEmitter;
 import dev.lumenlang.lumen.pipeline.language.emit.EmitRegistry;
 import dev.lumenlang.lumen.pipeline.language.emit.TransformerRegistry;
 import dev.lumenlang.lumen.pipeline.language.pattern.PatternRegistry;
@@ -19,7 +20,6 @@ import dev.lumenlang.lumen.pipeline.logger.LumenLogger;
 import dev.lumenlang.lumen.pipeline.typebinding.TypeRegistry;
 import dev.lumenlang.lumen.plugin.defaults.type.BuiltinTypeBindings;
 import dev.lumenlang.lumen.plugin.inject.InjectableHandlerFactoryImpl;
-import dev.lumenlang.lumen.plugin.scanner.RegistrationScannerBackend;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -44,6 +44,7 @@ public final class LumenBootstrap {
     private LumenBootstrap() {
         HeadlessBukkitServer.install();
         LumenLogger.init(LOGGER);
+        CodeEmitter.setParallelParseThreads(0);
         MinecraftVersion.detect("1.21");
 
         MinecraftTypes.registerAll();
@@ -72,7 +73,7 @@ public final class LumenBootstrap {
         this.eventBus = new LumenEventBus();
         LumenProvider.initBus(eventBus);
 
-        RegistrationScanner.init(new RegistrationScannerBackend(api));
+        RegistrationScanner.init(new StaticRegistrationScannerBackend(api));
         RegistrationScanner.scan("dev.lumenlang.lumen.plugin.defaults");
         patternRegistry.warmup();
     }

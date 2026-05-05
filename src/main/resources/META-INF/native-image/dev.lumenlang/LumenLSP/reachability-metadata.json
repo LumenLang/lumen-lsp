@@ -1,0 +1,3965 @@
+{
+  "reflection": [
+    {
+      "type": "dev.lumenlang.lumen.api.diagnostic.LumenDiagnostic",
+      "fields": [
+        {
+          "name": "columnEnd"
+        },
+        {
+          "name": "columnStart"
+        },
+        {
+          "name": "subHighlights"
+        },
+        {
+          "name": "underlineLabel"
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.lsp.server.LumenLanguageServer"
+    },
+    {
+      "type": "dev.lumenlang.lumen.lsp.server.service.LumenTextDocumentService"
+    },
+    {
+      "type": "dev.lumenlang.lumen.lsp.server.service.LumenWorkspaceService"
+    },
+    {
+      "type": "dev.lumenlang.lumen.pipeline.codegen.BlockContext",
+      "fields": [
+        {
+          "name": "env"
+        },
+        {
+          "name": "index"
+        },
+        {
+          "name": "node"
+        },
+        {
+          "name": "parent"
+        },
+        {
+          "name": "siblings"
+        },
+        {
+          "name": "vars"
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.pipeline.codegen.TypeEnv",
+      "fields": [
+        {
+          "name": "configEntries"
+        },
+        {
+          "name": "currentBlock"
+        },
+        {
+          "name": "dataSchemas"
+        },
+        {
+          "name": "declarationInfos"
+        },
+        {
+          "name": "experimental"
+        },
+        {
+          "name": "globalFields"
+        },
+        {
+          "name": "globalVars"
+        },
+        {
+          "name": "globals"
+        },
+        {
+          "name": "nullAssignments"
+        },
+        {
+          "name": "nullStates"
+        },
+        {
+          "name": "nullableVarInfos"
+        },
+        {
+          "name": "pendingNarrowings"
+        },
+        {
+          "name": "rootVars"
+        },
+        {
+          "name": "runtimeGlobals"
+        },
+        {
+          "name": "storedBaseKeys"
+        },
+        {
+          "name": "storedKeys"
+        },
+        {
+          "name": "storedScopeVars"
+        },
+        {
+          "name": "warnings"
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.binder.CommandAnnotationBinder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.binder.EventAnnotationBinder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.binder.InventoryAnnotationBinder",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.ControlBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.EventBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.InventoryEventBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.LifecycleBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.ListBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.LoopSourceBlock",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.MapBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.block.SchedulingBlocks",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.AttributeConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.BlockConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.ContainerConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.EventConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.GenericComparisonCondition",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.GenericConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.InventoryConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.ItemStackConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.ListConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.LocationConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.MapConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.OfflinePlayerConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.PersistentDataConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.PlayerConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.PotionEffectConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.ScopedVariableConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.StringConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.ValidationConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.AgeableConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.AxolotlConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.BeeConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.CreeperConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.FoxConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.GenericEntityConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.GolemConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.LivingEntityConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.PigConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.SheepConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.SlimeConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.TameableConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.WolfConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.condition.entity.ZombieConditions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.ConfigBlockForm",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.DataBlockForm",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.GlobalBlock",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.GlobalDeclarationForm",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.LoadStatementForm",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.form.VarDeclarationForm",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.hook.GlobalVarLoadHook",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.transformer.UnusedVarTransformer",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.emit.validator.NullSafetyValidator",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.event.DefaultEvents",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.AttributeExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.BlockExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.DataExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.InventoryExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.ItemStackExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.ListExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.LocationExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.MapExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.MathExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.PersistentDataExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.StringExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.VariableExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.WorldExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.AgeableExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.AxolotlExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.BeeExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.CreeperExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.EndermanExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.EntityExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.GenericEntityExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.LivingEntityExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.PhantomExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.SheepExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.SlimeExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.TameableExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.VillagerExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.WolfExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.entity.ZombieExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.player.OfflinePlayerExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.expression.player.PlayerExpressions",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.loop.DefaultLoopSources",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.placeholder.DefaultItemStackPlaceholders",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.placeholder.DefaultLocationPlaceholders",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.placeholder.DefaultPlayerPlaceholders",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.placeholder.DefaultWorldPlaceholders",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.AttributeStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.BlockStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.CommandMetaStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ContainerStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ControlFlowStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.DataStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.EventStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.InventoryGuiStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.InventoryStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ItemStackStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ListStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.MapStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.OfflinePlayerStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.PersistentDataStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.PlayerStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.PotionEffectStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.RequireStatement",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ScheduleStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.ServerStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.TitleStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.VariableStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.AgeableStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.AxolotlStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.BeeStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.CreeperStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.EndermanStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.GenericEntityStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.GolemStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.LivingEntityStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.PhantomStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.PigStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.SheepStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.SlimeStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.TameableStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.VillagerStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.WolfStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.statement.entity.ZombieStatements",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.type.AttributeBinding",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.type.DefaultTypeBindings",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        },
+        {
+          "name": "register",
+          "parameterTypes": [
+            "dev.lumenlang.lumen.api.LumenAPI"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "dev.lumenlang.lumen.plugin.defaults.util.InventoryHotReloadListener",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Class",
+      "methods": [
+        {
+          "name": "isRecord",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "java.lang.Object"
+    },
+    {
+      "type": "java.lang.reflect.RecordComponent"
+    },
+    {
+      "type": "java.sql.Date"
+    },
+    {
+      "type": "java.util.ArrayList"
+    },
+    {
+      "type": "java.util.ImmutableCollections$List12"
+    },
+    {
+      "type": "java.util.ImmutableCollections$ListN"
+    },
+    {
+      "type": "java.util.List"
+    },
+    {
+      "type": "java.util.concurrent.CompletableFuture",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "java.util.concurrent.CompletableFuture$Completion",
+      "allDeclaredFields": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "java.util.concurrent.FutureTask",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "java.util.concurrent.FutureTask$WaitNode",
+      "allDeclaredFields": true,
+      "allDeclaredConstructors": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "org.bukkit.entity.Villager$Profession"
+    },
+    {
+      "type": "org.bukkit.entity.Villager$Type"
+    },
+    {
+      "type": "org.bukkit.material.Banner"
+    },
+    {
+      "type": "org.bukkit.material.Bed"
+    },
+    {
+      "type": "org.bukkit.material.Button"
+    },
+    {
+      "type": "org.bukkit.material.Cake"
+    },
+    {
+      "type": "org.bukkit.material.Cauldron"
+    },
+    {
+      "type": "org.bukkit.material.Chest"
+    },
+    {
+      "type": "org.bukkit.material.Coal"
+    },
+    {
+      "type": "org.bukkit.material.CocoaPlant"
+    },
+    {
+      "type": "org.bukkit.material.Command"
+    },
+    {
+      "type": "org.bukkit.material.Comparator"
+    },
+    {
+      "type": "org.bukkit.material.Crops"
+    },
+    {
+      "type": "org.bukkit.material.DetectorRail"
+    },
+    {
+      "type": "org.bukkit.material.Diode"
+    },
+    {
+      "type": "org.bukkit.material.Dispenser"
+    },
+    {
+      "type": "org.bukkit.material.Door"
+    },
+    {
+      "type": "org.bukkit.material.Dye"
+    },
+    {
+      "type": "org.bukkit.material.EnderChest"
+    },
+    {
+      "type": "org.bukkit.material.FlowerPot"
+    },
+    {
+      "type": "org.bukkit.material.Furnace"
+    },
+    {
+      "type": "org.bukkit.material.Gate"
+    },
+    {
+      "type": "org.bukkit.material.Hopper"
+    },
+    {
+      "type": "org.bukkit.material.Ladder"
+    },
+    {
+      "type": "org.bukkit.material.Leaves"
+    },
+    {
+      "type": "org.bukkit.material.Lever"
+    },
+    {
+      "type": "org.bukkit.material.LongGrass"
+    },
+    {
+      "type": "org.bukkit.material.MaterialData"
+    },
+    {
+      "type": "org.bukkit.material.MonsterEggs"
+    },
+    {
+      "type": "org.bukkit.material.Mushroom"
+    },
+    {
+      "type": "org.bukkit.material.NetherWarts"
+    },
+    {
+      "type": "org.bukkit.material.Observer"
+    },
+    {
+      "type": "org.bukkit.material.PistonBaseMaterial"
+    },
+    {
+      "type": "org.bukkit.material.PistonExtensionMaterial"
+    },
+    {
+      "type": "org.bukkit.material.PoweredRail"
+    },
+    {
+      "type": "org.bukkit.material.PressurePlate"
+    },
+    {
+      "type": "org.bukkit.material.Pumpkin"
+    },
+    {
+      "type": "org.bukkit.material.Rails"
+    },
+    {
+      "type": "org.bukkit.material.RedstoneTorch"
+    },
+    {
+      "type": "org.bukkit.material.RedstoneWire"
+    },
+    {
+      "type": "org.bukkit.material.Sandstone"
+    },
+    {
+      "type": "org.bukkit.material.Sapling"
+    },
+    {
+      "type": "org.bukkit.material.Sign"
+    },
+    {
+      "type": "org.bukkit.material.Skull"
+    },
+    {
+      "type": "org.bukkit.material.SmoothBrick"
+    },
+    {
+      "type": "org.bukkit.material.SpawnEgg"
+    },
+    {
+      "type": "org.bukkit.material.Stairs"
+    },
+    {
+      "type": "org.bukkit.material.Step"
+    },
+    {
+      "type": "org.bukkit.material.Torch"
+    },
+    {
+      "type": "org.bukkit.material.TrapDoor"
+    },
+    {
+      "type": "org.bukkit.material.Tree"
+    },
+    {
+      "type": "org.bukkit.material.Tripwire"
+    },
+    {
+      "type": "org.bukkit.material.TripwireHook"
+    },
+    {
+      "type": "org.bukkit.material.Vine"
+    },
+    {
+      "type": "org.bukkit.material.Wood"
+    },
+    {
+      "type": "org.bukkit.material.WoodenStep"
+    },
+    {
+      "type": "org.bukkit.material.Wool"
+    },
+    {
+      "type": "org.eclipse.lsp4j.AbstractTextDocumentRegistrationAndWorkDoneProgressOptions",
+      "fields": [
+        {
+          "name": "workDoneProgress"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.AbstractWorkDoneProgressOptions",
+      "fields": [
+        {
+          "name": "workDoneProgress"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CallHierarchyCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CallHierarchyRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ClientCapabilities",
+      "fields": [
+        {
+          "name": "textDocument"
+        },
+        {
+          "name": "workspace"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionKindCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionKindDocumentation"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionLiteralSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionResolveSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionTag",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeActionTagSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeLensCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeLensOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeLensResolveSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CodeLensWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ColorProviderCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ColorProviderOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.Command"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionCapabilities",
+      "fields": [
+        {
+          "name": "completionItem"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionContext",
+      "fields": [
+        {
+          "name": "triggerKind"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItem",
+      "fields": [
+        {
+          "name": "additionalTextEdits"
+        },
+        {
+          "name": "command"
+        },
+        {
+          "name": "commitCharacters"
+        },
+        {
+          "name": "data"
+        },
+        {
+          "name": "deprecated"
+        },
+        {
+          "name": "detail"
+        },
+        {
+          "name": "documentation"
+        },
+        {
+          "name": "filterText"
+        },
+        {
+          "name": "insertText"
+        },
+        {
+          "name": "insertTextFormat"
+        },
+        {
+          "name": "insertTextMode"
+        },
+        {
+          "name": "kind"
+        },
+        {
+          "name": "label"
+        },
+        {
+          "name": "labelDetails"
+        },
+        {
+          "name": "preselect"
+        },
+        {
+          "name": "sortText"
+        },
+        {
+          "name": "tags"
+        },
+        {
+          "name": "textEdit"
+        },
+        {
+          "name": "textEditText"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemCapabilities",
+      "fields": [
+        {
+          "name": "documentationFormat"
+        },
+        {
+          "name": "snippetSupport"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemInsertTextModeSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemKind",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemKindCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemLabelDetails"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemResolveSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemTag",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionItemTagSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionList",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionListCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionOptions",
+      "fields": [
+        {
+          "name": "allCommitCharacters"
+        },
+        {
+          "name": "completionItem"
+        },
+        {
+          "name": "resolveProvider"
+        },
+        {
+          "name": "triggerCharacters"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionParams",
+      "fields": [
+        {
+          "name": "context"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.CompletionTriggerKind",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DeclarationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DeclarationRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DefinitionCapabilities",
+      "fields": [
+        {
+          "name": "linkSupport"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DefinitionOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DefinitionParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.Diagnostic",
+      "fields": [
+        {
+          "name": "code"
+        },
+        {
+          "name": "codeDescription"
+        },
+        {
+          "name": "data"
+        },
+        {
+          "name": "message"
+        },
+        {
+          "name": "range"
+        },
+        {
+          "name": "relatedInformation"
+        },
+        {
+          "name": "severity"
+        },
+        {
+          "name": "source"
+        },
+        {
+          "name": "tags"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticCodeDescription"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticRelatedInformation"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticServerCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticSeverity",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticTag",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DiagnosticsTagSupport"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DidChangeConfigurationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DidChangeTextDocumentParams",
+      "fields": [
+        {
+          "name": "contentChanges"
+        },
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DidChangeWatchedFilesCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DidCloseTextDocumentParams",
+      "fields": [
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DidOpenTextDocumentParams",
+      "fields": [
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentColorParams",
+      "fields": [
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentFilter"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentFormattingOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentHighlightCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentHighlightOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentLinkCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentLinkOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentOnTypeFormattingOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentRangeFormattingOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentSymbol",
+      "fields": [
+        {
+          "name": "children"
+        },
+        {
+          "name": "deprecated"
+        },
+        {
+          "name": "detail"
+        },
+        {
+          "name": "kind"
+        },
+        {
+          "name": "name"
+        },
+        {
+          "name": "range"
+        },
+        {
+          "name": "selectionRange"
+        },
+        {
+          "name": "tags"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentSymbolCapabilities",
+      "fields": [
+        {
+          "name": "hierarchicalDocumentSymbolSupport"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentSymbolOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.DocumentSymbolParams",
+      "fields": [
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.DynamicRegistrationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ExecuteCommandCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ExecuteCommandOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationFilter"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationPattern"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationPatternOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationsServerCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FileOperationsWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FiltersCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FoldingRangeCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FoldingRangeKindSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FoldingRangeProviderOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FoldingRangeSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FoldingRangeWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.FormattingCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.GeneralClientCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.Hover",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.HoverCapabilities",
+      "fields": [
+        {
+          "name": "contentFormat"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.HoverOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.HoverParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.ImplementationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ImplementationRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InitializeResult",
+      "fields": [
+        {
+          "name": "capabilities"
+        },
+        {
+          "name": "serverInfo"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.InitializedParams",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHint",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintCapabilities",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintKind",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintLabelPart",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintParams",
+      "fields": [
+        {
+          "name": "range"
+        },
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintResolveSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlayHintWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlineCompletionCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlineCompletionRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlineValueCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlineValueRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InlineValueWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InsertReplaceEdit"
+    },
+    {
+      "type": "org.eclipse.lsp4j.InsertTextFormat",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.InsertTextMode",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.LinkedEditingRangeCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.LinkedEditingRangeRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.Location",
+      "fields": [
+        {
+          "name": "range"
+        },
+        {
+          "name": "uri"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.LocationLink",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.MarkdownCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.MarkupContent",
+      "fields": [
+        {
+          "name": "kind"
+        },
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.MarkupKind",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.MessageParams",
+      "fields": [
+        {
+          "name": "message"
+        },
+        {
+          "name": "type"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.MessageType",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.MonikerCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.MonikerRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookDocumentClientCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookDocumentFilter"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookDocumentSyncClientCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookDocumentSyncRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookSelector"
+    },
+    {
+      "type": "org.eclipse.lsp4j.NotebookSelectorCell"
+    },
+    {
+      "type": "org.eclipse.lsp4j.OnTypeFormattingCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ParameterInformationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.Position",
+      "fields": [
+        {
+          "name": "character"
+        },
+        {
+          "name": "line"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.PrepareSupportDefaultBehavior",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.PublishDiagnosticsCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.PublishDiagnosticsParams",
+      "fields": [
+        {
+          "name": "diagnostics"
+        },
+        {
+          "name": "uri"
+        },
+        {
+          "name": "version"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.Range",
+      "fields": [
+        {
+          "name": "end"
+        },
+        {
+          "name": "start"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.RangeFormattingCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ReferenceOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ReferencesCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.RegularExpressionsCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.RelativePattern"
+    },
+    {
+      "type": "org.eclipse.lsp4j.RenameCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.RenameOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SaveOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SelectionRangeCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SelectionRangeRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokens",
+      "fields": [
+        {
+          "name": "data"
+        },
+        {
+          "name": "resultId"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensCapabilities",
+      "fields": [
+        {
+          "name": "formats"
+        },
+        {
+          "name": "requests"
+        },
+        {
+          "name": "tokenModifiers"
+        },
+        {
+          "name": "tokenTypes"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensClientCapabilitiesRequests",
+      "fields": [
+        {
+          "name": "full"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensClientCapabilitiesRequestsFull"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensLegend",
+      "fields": [
+        {
+          "name": "tokenModifiers"
+        },
+        {
+          "name": "tokenTypes"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensParams",
+      "fields": [
+        {
+          "name": "textDocument"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensServerFull"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions",
+      "fields": [
+        {
+          "name": "full"
+        },
+        {
+          "name": "id"
+        },
+        {
+          "name": "legend"
+        },
+        {
+          "name": "range"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SemanticTokensWorkspaceCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ServerCapabilities",
+      "fields": [
+        {
+          "name": "callHierarchyProvider"
+        },
+        {
+          "name": "codeActionProvider"
+        },
+        {
+          "name": "codeLensProvider"
+        },
+        {
+          "name": "colorProvider"
+        },
+        {
+          "name": "completionProvider"
+        },
+        {
+          "name": "declarationProvider"
+        },
+        {
+          "name": "definitionProvider"
+        },
+        {
+          "name": "diagnosticProvider"
+        },
+        {
+          "name": "documentFormattingProvider"
+        },
+        {
+          "name": "documentHighlightProvider"
+        },
+        {
+          "name": "documentLinkProvider"
+        },
+        {
+          "name": "documentOnTypeFormattingProvider"
+        },
+        {
+          "name": "documentRangeFormattingProvider"
+        },
+        {
+          "name": "documentSymbolProvider"
+        },
+        {
+          "name": "executeCommandProvider"
+        },
+        {
+          "name": "experimental"
+        },
+        {
+          "name": "foldingRangeProvider"
+        },
+        {
+          "name": "hoverProvider"
+        },
+        {
+          "name": "implementationProvider"
+        },
+        {
+          "name": "inlayHintProvider"
+        },
+        {
+          "name": "inlineCompletionProvider"
+        },
+        {
+          "name": "inlineValueProvider"
+        },
+        {
+          "name": "linkedEditingRangeProvider"
+        },
+        {
+          "name": "monikerProvider"
+        },
+        {
+          "name": "notebookDocumentSync"
+        },
+        {
+          "name": "positionEncoding"
+        },
+        {
+          "name": "referencesProvider"
+        },
+        {
+          "name": "renameProvider"
+        },
+        {
+          "name": "selectionRangeProvider"
+        },
+        {
+          "name": "semanticTokensProvider"
+        },
+        {
+          "name": "signatureHelpProvider"
+        },
+        {
+          "name": "textDocument"
+        },
+        {
+          "name": "textDocumentSync"
+        },
+        {
+          "name": "typeDefinitionProvider"
+        },
+        {
+          "name": "typeHierarchyProvider"
+        },
+        {
+          "name": "workspace"
+        },
+        {
+          "name": "workspaceSymbolProvider"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.ServerInfo"
+    },
+    {
+      "type": "org.eclipse.lsp4j.ShowDocumentCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SignatureHelpCapabilities",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SignatureHelpOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SignatureInformationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.StaleRequestCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolInformation",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolKind",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolKindCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolTag",
+      "fields": [
+        {
+          "name": "value"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.SymbolTagSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.SynchronizationCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentClientCapabilities",
+      "fields": [
+        {
+          "name": "codeAction"
+        },
+        {
+          "name": "completion"
+        },
+        {
+          "name": "definition"
+        },
+        {
+          "name": "documentSymbol"
+        },
+        {
+          "name": "formatting"
+        },
+        {
+          "name": "hover"
+        },
+        {
+          "name": "inlayHint"
+        },
+        {
+          "name": "publishDiagnostics"
+        },
+        {
+          "name": "rename"
+        },
+        {
+          "name": "semanticTokens"
+        },
+        {
+          "name": "signatureHelp"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentContentCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentContentChangeEvent",
+      "fields": [
+        {
+          "name": "range"
+        },
+        {
+          "name": "rangeLength"
+        },
+        {
+          "name": "text"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentContentRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentIdentifier",
+      "fields": [
+        {
+          "name": "uri"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentItem",
+      "fields": [
+        {
+          "name": "languageId"
+        },
+        {
+          "name": "text"
+        },
+        {
+          "name": "uri"
+        },
+        {
+          "name": "version"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentPositionAndWorkDoneProgressAndPartialResultParams"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentPositionAndWorkDoneProgressParams"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentPositionParams",
+      "fields": [
+        {
+          "name": "position"
+        },
+        {
+          "name": "textDocument"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentRegistrationOptions",
+      "fields": [
+        {
+          "name": "documentSelector"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentServerCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentSyncKind"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextDocumentSyncOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TextEdit"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TypeDefinitionCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TypeDefinitionRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TypeHierarchyCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.TypeHierarchyRegistrationOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WindowClientCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WindowShowMessageRequestActionItemCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WindowShowMessageRequestCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkDoneProgressAndPartialResultParams"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceClientCapabilities",
+      "fields": [
+        {
+          "name": "configuration"
+        }
+      ],
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceEditCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceEditChangeAnnotationSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceFolder"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceFoldersOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceServerCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceSymbolOptions"
+    },
+    {
+      "type": "org.eclipse.lsp4j.WorkspaceSymbolResolveSupportCapabilities"
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.CodeActionResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.CompletionItemTextEditTypeAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.DocumentDiagnosticReportTypeAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.DocumentSymbolResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.HoverTypeAdapter$Factory",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.InitializeParamsTypeAdapter$Factory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.InlineValueResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.LocationLinkListAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.PrepareRenameResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.SemanticTokensFullDeltaResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.SymbolInformationTypeAdapter$Factory",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true,
+      "unsafeAllocated": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.VersionedTextDocumentIdentifierTypeAdapter$Factory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.adapters.WorkspaceSymbolResponseAdapter",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.json.adapters.JsonElementTypeAdapter$Factory",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.messages.Message",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.messages.NotificationMessage",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.messages.RequestMessage",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.messages.ResponseError",
+      "fields": [
+        {
+          "name": "code"
+        },
+        {
+          "name": "data"
+        },
+        {
+          "name": "message"
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.jsonrpc.messages.ResponseMessage",
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allDeclaredConstructors": true
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.LanguageClient"
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.LanguageClientAware"
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.LanguageServer",
+      "methods": [
+        {
+          "name": "exit",
+          "parameterTypes": []
+        },
+        {
+          "name": "getNotebookDocumentService",
+          "parameterTypes": []
+        },
+        {
+          "name": "getTextDocumentService",
+          "parameterTypes": []
+        },
+        {
+          "name": "getWorkspaceService",
+          "parameterTypes": []
+        },
+        {
+          "name": "initialize",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.InitializeParams"
+          ]
+        },
+        {
+          "name": "initialized",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.InitializedParams"
+          ]
+        },
+        {
+          "name": "shutdown",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.NotebookDocumentService"
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.TextDocumentService",
+      "methods": [
+        {
+          "name": "completion",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.CompletionParams"
+          ]
+        },
+        {
+          "name": "definition",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DefinitionParams"
+          ]
+        },
+        {
+          "name": "didChange",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DidChangeTextDocumentParams"
+          ]
+        },
+        {
+          "name": "didClose",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DidCloseTextDocumentParams"
+          ]
+        },
+        {
+          "name": "didOpen",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DidOpenTextDocumentParams"
+          ]
+        },
+        {
+          "name": "documentColor",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DocumentColorParams"
+          ]
+        },
+        {
+          "name": "documentSymbol",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.DocumentSymbolParams"
+          ]
+        },
+        {
+          "name": "hover",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.HoverParams"
+          ]
+        },
+        {
+          "name": "inlayHint",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.InlayHintParams"
+          ]
+        },
+        {
+          "name": "semanticTokensFull",
+          "parameterTypes": [
+            "org.eclipse.lsp4j.SemanticTokensParams"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "org.eclipse.lsp4j.services.WorkspaceService"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData"
+    },
+    {
+      "type": "sun.text.resources.cldr.FormatData_en"
+    },
+    {
+      "type": {
+        "proxy": [
+          "org.bukkit.Server"
+        ]
+      }
+    },
+    {
+      "type": {
+        "proxy": [
+          "org.eclipse.lsp4j.services.LanguageClient",
+          "org.eclipse.lsp4j.jsonrpc.Endpoint"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "glob": "META-INF/services/java.time.zone.ZoneRulesProvider"
+    },
+    {
+      "module": "java.logging",
+      "glob": "sun/util/logging/resources/logging_en.properties"
+    },
+    {
+      "module": "java.logging",
+      "glob": "sun/util/logging/resources/logging_en_IN.properties"
+    },
+    {
+      "bundle": "sun.util.logging.resources.logging"
+    }
+  ]
+}

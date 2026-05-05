@@ -25,8 +25,22 @@ java {
     }
 }
 
+sourceSets {
+    wasm {
+        java.srcDir 'src/wasm/java'
+        compileClasspath += sourceSets.main.output + configurations.compileClasspath
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ['-parameters']
+}
+
+tasks.named('compileWasmJava') {
+    javaCompiler = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(26)
+    }
+    options.compilerArgs += ['--add-modules', 'org.graalvm.webimage.api']
 }
 
 jar {
@@ -40,6 +54,39 @@ shadowJar {
     archiveClassifier.set('')
     archiveVersion.set('')
     exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+}
+
+tasks.register('registrationDump', JavaExec) {
+    group = 'lumen'
+    description = 'Scans the classpath for @Registration classes and writes lumen-defaults.txt to the main resources.'
+    dependsOn tasks.named('compileJava')
+    classpath = sourceSets.main.output.classesDirs + configurations.runtimeClasspath
+    mainClass = 'dev.lumenlang.lumen.lsp.bootstrap.RegistrationDumper'
+    def output = file("src/main/resources/lumen-defaults.txt")
+    outputs.file(output)
+    doFirst {
+        output.parentFile.mkdirs()
+        standardOutput = new FileOutputStream(output)
+    }
+}
+
+tasks.named('processResources') {
+    dependsOn tasks.named('registrationDump')
+}
+
+tasks.register('wasmJar', com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+    dependsOn tasks.named('registrationDump')
+    archiveBaseName.set('LumenLSP')
+    archiveClassifier.set('wasm')
+    archiveVersion.set('')
+    from sourceSets.main.output
+    from sourceSets.wasm.output
+    configurations = [project.configurations.runtimeClasspath]
+    manifest {
+        attributes "Main-Class": "dev.lumenlang.lumen.lsp.LumenLanguageServerLauncher"
+    }
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    mergeServiceFiles()
 }
 
 build {

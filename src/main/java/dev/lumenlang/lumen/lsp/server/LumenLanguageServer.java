@@ -36,14 +36,18 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     private final @NotNull DocumentStore store = new DocumentStore();
     private final @NotNull LumenTextDocumentService textDocumentService;
     private final @NotNull LumenWorkspaceService workspaceService;
+    private final boolean singleThread;
     private @Nullable LanguageClient client;
     private @Nullable DocumentAnalyzer analyzer;
     private @Nullable LumenBootstrap bootstrap;
 
     /**
      * Creates a new server, deferring registry init until {@link #initialize}.
+     *
+     * @param singleThread when true, document analysis runs sequentially on the request thread
      */
-    public LumenLanguageServer() {
+    public LumenLanguageServer(boolean singleThread) {
+        this.singleThread = singleThread;
         this.textDocumentService = new LumenTextDocumentService(this);
         this.workspaceService = new LumenWorkspaceService(this);
     }
@@ -51,7 +55,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
     @Override
     public CompletableFuture<InitializeResult> initialize(@NotNull InitializeParams params) {
         bootstrap = LumenBootstrap.get();
-        analyzer = new DocumentAnalyzer(bootstrap);
+        analyzer = new DocumentAnalyzer(bootstrap, singleThread);
         ServerCapabilities capabilities = new ServerCapabilities();
         capabilities.setTextDocumentSync(TextDocumentSyncKind.Incremental);
         capabilities.setHoverProvider(true);

@@ -51,15 +51,19 @@ import java.util.concurrent.Future;
 public final class DocumentAnalyzer {
 
     private final @NotNull LumenBootstrap bootstrap;
-    private final @NotNull ExecutorService pool = Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
+    private final boolean singleThread;
+    private final @Nullable ExecutorService pool;
 
     /**
      * Creates a new analyser bound to the given bootstrap.
      *
-     * @param bootstrap the populated bootstrap holding the registries
+     * @param bootstrap    the populated bootstrap holding the registries
+     * @param singleThread when true, all top level blocks are walked sequentially on the calling thread
      */
-    public DocumentAnalyzer(@NotNull LumenBootstrap bootstrap) {
+    public DocumentAnalyzer(@NotNull LumenBootstrap bootstrap, boolean singleThread) {
         this.bootstrap = bootstrap;
+        this.singleThread = singleThread;
+        this.pool = singleThread ? null : Executors.newFixedThreadPool(Math.max(2, Runtime.getRuntime().availableProcessors() - 1));
     }
 
     /**
@@ -109,7 +113,7 @@ public final class DocumentAnalyzer {
      * Closes the worker pool. Should be called when the server shuts down.
      */
     public void shutdown() {
-        pool.shutdownNow();
+        if (pool != null) pool.shutdownNow();
     }
 
     /**
@@ -142,7 +146,7 @@ public final class DocumentAnalyzer {
             walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
         }
 
-        if (independent.size() <= 1) {
+        if (singleThread || independent.size() <= 1) {
             for (Node child : independent) {
                 walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
             }
@@ -267,9 +271,10 @@ public final class DocumentAnalyzer {
                 if (child instanceof RawBlockNode) continue;
                 if (!isImportant(child)) independent.add(child);
             }
-            if (independent.size() == 1) {
-                Node child = independent.get(0);
-                walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
+            if (singleThread || independent.size() == 1) {
+                for (Node child : independent) {
+                    walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
+                }
             } else if (!independent.isEmpty()) {
                 mergeParallel(independent, children, env, ctx, indentByLine, diagnostics, analyses);
             }
@@ -350,7 +355,7 @@ public final class DocumentAnalyzer {
             if (child instanceof RawBlockNode) continue;
             if (!isImportant(child)) independent.add(child);
         }
-        if (independent.size() <= 1) {
+        if (singleThread || independent.size() <= 1) {
             for (Node child : independent) {
                 walkOne(child, null, children, children.indexOf(child), env, ctx, diagnostics, analyses, indentByLine);
             }
