@@ -236,6 +236,7 @@ public final class DocumentAnalyzer {
         }
         BlockContextImpl block = new BlockContextImpl(node, null, List.of(node), 0);
         HandlerContextImpl hctx = new HandlerContextImpl(null, env, ctx, block, NoOpJavaOutput.INSTANCE);
+        env.enterBlock(block);
         try {
             form.handle(head, children, hctx);
             Map<String, Object> meta = new HashMap<>();
@@ -255,6 +256,8 @@ public final class DocumentAnalyzer {
             diagnostics.add(diag);
             analyses.add(new LineAnalysis(node.line(), indent, head, diag, snapshot, null, new HashMap<>()));
             recordChildren(node, env, snapshot, analyses, indentByLine);
+        } finally {
+            env.leaveBlock();
         }
     }
 
