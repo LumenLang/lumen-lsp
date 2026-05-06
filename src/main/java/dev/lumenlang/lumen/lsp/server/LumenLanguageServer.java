@@ -62,7 +62,7 @@ public final class LumenLanguageServer implements LanguageServer, LanguageClient
         capabilities.setDefinitionProvider(true);
         capabilities.setDocumentSymbolProvider(true);
         capabilities.setInlayHintProvider(true);
-        capabilities.setCompletionProvider(new CompletionOptions(false, List.of(" ", "\n")));
+        capabilities.setCompletionProvider(new CompletionOptions(true, List.of(" ", "\n")));
         SemanticTokensWithRegistrationOptions semantic = new SemanticTokensWithRegistrationOptions();
         semantic.setLegend(new SemanticTokensLegend(SemanticLegend.TYPES, SemanticLegend.MODIFIERS));
         semantic.setFull(true);

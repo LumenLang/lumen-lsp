@@ -62,9 +62,9 @@ dev.lumenlang.lumen.plugin.defaults.expression.ListExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.LocationExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.MapExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.MathExpressions
+dev.lumenlang.lumen.plugin.defaults.expression.NullableExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.PersistentDataExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.StringExpressions
-dev.lumenlang.lumen.plugin.defaults.expression.VariableExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.WorldExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.entity.AgeableExpressions
 dev.lumenlang.lumen.plugin.defaults.expression.entity.AxolotlExpressions

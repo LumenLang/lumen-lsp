@@ -6,6 +6,7 @@ import dev.lumenlang.lumen.lsp.analysis.DocumentStore;
 import dev.lumenlang.lumen.lsp.bootstrap.LumenBootstrap;
 import dev.lumenlang.lumen.lsp.diagnostic.DiagnosticPublisher;
 import dev.lumenlang.lumen.lsp.providers.completion.CompletionProvider;
+import dev.lumenlang.lumen.lsp.providers.completion.CompletionResolver;
 import dev.lumenlang.lumen.lsp.providers.definition.DefinitionProvider;
 import dev.lumenlang.lumen.lsp.providers.hover.HoverProvider;
 import dev.lumenlang.lumen.lsp.providers.inlay.InlayHintProvider;
@@ -147,6 +148,13 @@ public final class LumenTextDocumentService implements TextDocumentService {
         }
         List<CompletionItem> items = CompletionProvider.complete(bootstrap, analysis, source, params.getPosition());
         return CompletableFuture.completedFuture(Either.forLeft(items));
+    }
+
+    @Override
+    public CompletableFuture<CompletionItem> resolveCompletionItem(@NotNull CompletionItem unresolved) {
+        LumenBootstrap bootstrap = server.bootstrap();
+        if (bootstrap == null) return CompletableFuture.completedFuture(unresolved);
+        return CompletableFuture.completedFuture(CompletionResolver.resolve(bootstrap, unresolved));
     }
 
     @Override
