@@ -117,7 +117,10 @@ public final class LumenTextDocumentService implements TextDocumentService {
 
     @Override
     public void didClose(@NotNull DidCloseTextDocumentParams params) {
-        server.store().close(params.getTextDocument().getUri());
+        String uri = params.getTextDocument().getUri();
+        server.store().close(uri);
+        DocumentAnalyzer analyzer = server.analyzer();
+        if (analyzer != null) analyzer.forget(uri);
     }
 
     @Override
@@ -191,13 +194,12 @@ public final class LumenTextDocumentService implements TextDocumentService {
      * @param text     the document text
      * @param editLine the 1-based source line that changed, or {@code null} for a full reparse
      */
-    private void analyzeAndPublish(@NotNull String uri, @NotNull String text, @Nullable Integer editLine) {
+    private void analyzeAndPublish(@NotNull String uri, @NotNull String text, @SuppressWarnings("unused") @Nullable Integer editLine) {
         DocumentAnalyzer analyzer = server.analyzer();
         LanguageClient client = server.client();
         if (analyzer == null || client == null) return;
         DocumentStore store = server.store();
-        AnalysisResult prior = store.analysis(uri);
-        AnalysisResult result = analyzer.analyzeIncremental(uri, text, editLine, prior);
+        AnalysisResult result = analyzer.analyze(uri, text);
         store.analysis(uri, result);
         DiagnosticPublisher.publish(client, result);
     }
