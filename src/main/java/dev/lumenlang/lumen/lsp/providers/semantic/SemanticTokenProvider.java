@@ -4,6 +4,7 @@ import dev.lumenlang.lumen.lsp.analysis.AnalysisResult;
 import dev.lumenlang.lumen.lsp.analysis.LineAnalysis;
 import dev.lumenlang.lumen.lsp.analysis.MetaKeys;
 import dev.lumenlang.lumen.api.codegen.TypeEnv;
+import dev.lumenlang.lumen.api.language.SemanticKind;
 import dev.lumenlang.lumen.pipeline.language.match.BoundValue;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredBlockMatch;
 import dev.lumenlang.lumen.pipeline.language.pattern.registered.RegisteredPatternMatch;
@@ -115,12 +116,13 @@ public final class SemanticTokenProvider {
             int length = token.end() - token.start();
             if (length <= 0) continue;
             BoundValue bv = bvByStart.get(contentCol);
-            int type = classify(token, bv, env);
+            Integer type = classify(token, bv, env);
             int mods = 0;
             if (declRange != null && contentCol == declRange[0] && token.end() == declRange[1]) {
                 type = SemanticLegend.TYPE_VARIABLE;
                 mods |= SemanticLegend.MOD_DECLARATION;
             }
+            if (type == null) continue;
             out.add(new int[]{row, contentCol + indent, length, type, mods});
         }
     }
@@ -150,7 +152,7 @@ public final class SemanticTokenProvider {
      * @param env   the post line type environment, or {@code null} when none was recorded
      * @return the semantic token type index
      */
-    private static int classify(@NotNull Token token, @Nullable BoundValue bv, @Nullable TypeEnv env) {
+    private static @Nullable Integer classify(@NotNull Token token, @Nullable BoundValue bv, @Nullable TypeEnv env) {
         return switch (token.kind()) {
             case STRING -> SemanticLegend.TYPE_STRING;
             case NUMBER -> SemanticLegend.TYPE_NUMBER;
@@ -160,25 +162,40 @@ public final class SemanticTokenProvider {
     }
 
     /**
-     * Returns the semantic type for an identifier or raw token, preferring a
-     * variable lookup when the token resolves in scope and falling back to
-     * keyword color for literals not bound by any placeholder.
+     * Returns the semantic type for an identifier or raw token, preferring an
+     * in-scope variable resolution, then the binding's declared
+     * {@link SemanticKind}. Returns {@code null} so the editor can render the
+     * theme default when no classification fits.
      *
      * @param token the identifier token
-     * @param bv    the bound value covering this token, or {@code null} when this token is a literal
+     * @param bv    the bound value covering this token, or {@code null} when none does
      * @param env   the post line type environment, or {@code null} when none was recorded
-     * @return the semantic token type index
+     * @return the semantic token type index, or {@code null} to skip
      */
-    private static int identType(@NotNull Token token, @Nullable BoundValue bv, @Nullable TypeEnv env) {
+    private static @Nullable Integer identType(@NotNull Token token, @Nullable BoundValue bv, @Nullable TypeEnv env) {
         if (bv == null) return SemanticLegend.TYPE_KEYWORD;
-        VarHandle ref = env != null ? env.lookupVar(token.text()) : null;
-        if (ref != null) return SemanticLegend.TYPE_VARIABLE;
-        String id = bv.binding().id();
-        return switch (id) {
-            case "IDENT" -> SemanticLegend.TYPE_VARIABLE;
-            case "BOOL", "BOOLEAN" -> SemanticLegend.TYPE_KEYWORD;
-            case "TYPE" -> SemanticLegend.TYPE_TYPE;
-            default -> SemanticLegend.TYPE_PROPERTY;
+        SemanticKind kind = bv.binding().semanticKind();
+        if (kind == SemanticKind.PASSTHROUGH) {
+            VarHandle ref = env != null ? env.lookupVar(token.text()) : null;
+            if (ref != null) return SemanticLegend.TYPE_VARIABLE;
+            return null;
+        }
+        return mapKind(kind);
+    }
+
+    private static int mapKind(@NotNull SemanticKind kind) {
+        return switch (kind) {
+            case KEYWORD -> SemanticLegend.TYPE_KEYWORD;
+            case VARIABLE -> SemanticLegend.TYPE_VARIABLE;
+            case PARAMETER -> SemanticLegend.TYPE_PARAMETER;
+            case PROPERTY -> SemanticLegend.TYPE_PROPERTY;
+            case FUNCTION -> SemanticLegend.TYPE_FUNCTION;
+            case TYPE -> SemanticLegend.TYPE_TYPE;
+            case EVENT -> SemanticLegend.TYPE_EVENT;
+            case NUMBER -> SemanticLegend.TYPE_NUMBER;
+            case STRING -> SemanticLegend.TYPE_STRING;
+            case NAMESPACE -> SemanticLegend.TYPE_NAMESPACE;
+            case PASSTHROUGH -> SemanticLegend.TYPE_VARIABLE;
         };
     }
 

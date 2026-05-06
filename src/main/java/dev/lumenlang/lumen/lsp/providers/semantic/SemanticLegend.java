@@ -72,6 +72,16 @@ public final class SemanticLegend {
     public static final int TYPE_PROPERTY = 9;
 
     /**
+     * Index of the {@code event} type.
+     */
+    public static final int TYPE_EVENT = 10;
+
+    /**
+     * Index of the {@code namespace} type.
+     */
+    public static final int TYPE_NAMESPACE = 11;
+
+    /**
      * Bitmask of the {@code declaration} modifier.
      */
     public static final int MOD_DECLARATION = 1;
