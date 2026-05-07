@@ -186,7 +186,7 @@ public final class SemanticTokenProvider {
     private static int mapKind(@NotNull SemanticKind kind) {
         return switch (kind) {
             case KEYWORD -> SemanticLegend.TYPE_KEYWORD;
-            case VARIABLE -> SemanticLegend.TYPE_VARIABLE;
+            case VARIABLE, PASSTHROUGH -> SemanticLegend.TYPE_VARIABLE;
             case PARAMETER -> SemanticLegend.TYPE_PARAMETER;
             case PROPERTY -> SemanticLegend.TYPE_PROPERTY;
             case FUNCTION -> SemanticLegend.TYPE_FUNCTION;
@@ -195,7 +195,6 @@ public final class SemanticTokenProvider {
             case NUMBER -> SemanticLegend.TYPE_NUMBER;
             case STRING -> SemanticLegend.TYPE_STRING;
             case NAMESPACE -> SemanticLegend.TYPE_NAMESPACE;
-            case PASSTHROUGH -> SemanticLegend.TYPE_VARIABLE;
         };
     }
 

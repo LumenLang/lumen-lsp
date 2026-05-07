@@ -146,8 +146,8 @@ public final class LumenTextDocumentService implements TextDocumentService {
         if (analysis == null || source == null || bootstrap == null) {
             return CompletableFuture.completedFuture(Either.forLeft(Collections.emptyList()));
         }
-        List<CompletionItem> items = CompletionProvider.complete(bootstrap, analysis, source, params.getPosition());
-        return CompletableFuture.completedFuture(Either.forLeft(items));
+        CompletionList list = CompletionProvider.complete(bootstrap, analysis, source, params.getPosition());
+        return CompletableFuture.completedFuture(Either.forRight(list));
     }
 
     @Override
